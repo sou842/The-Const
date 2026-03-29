@@ -1,26 +1,79 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSessionFromRequest } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-const protectedRoutes = ["/write"];
-const adminRoutes = ["/admin"];
+const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "THECONST");
+const COOKIE_NAME = "tc_session";
 
-export async function proxy(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+// Define route categories
+const PUBLIC_FILE_EXTENSIONS = [".ico", ".png", ".jpg", ".jpeg", ".svg", ".css", ".js"];
+const AUTH_ROUTES = ["/login", "/register"];
+const PROTECTED_ROUTES = [
+  "/write",
+  "/saved",
+  "/settings",
+  "/messages",
+  "/network",
+  "/notifications",
+  "/admin",
+  "/profile",
+];
 
-  const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
-  const isAdmin = adminRoutes.some((route) => pathname.startsWith(route));
+export async function proxy(request: NextRequest) {
+  const { nextUrl, cookies } = request;
+  const path = nextUrl.pathname;
 
-  if (isProtected || isAdmin) {
-    const session = await getSessionFromRequest(req);
-    console.log(`[Proxy] Path: ${pathname}, Status: ${session ? 'Logged in' : 'Logged out'}, Role: ${session?.role}`);
+  // 1. Skip proxy for static assets
+  if (PUBLIC_FILE_EXTENSIONS.some((ext) => path.endsWith(ext))) {
+    return NextResponse.next();
+  }
 
-    if (!session) {
-      return NextResponse.redirect(new URL("/login", req.url));
+  // 2. Get session token from cookies
+  const token = cookies.get(COOKIE_NAME)?.value;
+
+  // 3. Verify session if token exists
+  let session: any = null;
+  if (token) {
+    try {
+      const { payload } = await jwtVerify(token, SECRET);
+      session = payload;
+    } catch {
+      // Invalid token, treat as unauthenticated
+      session = null;
+    }
+  }
+
+  const isAuthenticated = !!session;
+
+  // 4. Handle Auth Routes (Login/Register)
+  if (AUTH_ROUTES.some((route) => path.startsWith(route))) {
+    if (isAuthenticated) {
+      console.log(`[Proxy] Redirecting authenticated user away from ${path}`);
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 5. Handle Protected Routes
+  const isProtectedRoute = PROTECTED_ROUTES.some((route) => {
+    return path === route || path.startsWith(`${route}/`);
+  });
+
+  const isPublicProfile = path.startsWith("/profile/") && path !== "/profile";
+  
+  if (isProtectedRoute && !isPublicProfile) {
+    console.log(`[Proxy] Checking access for ${path}, status: ${isAuthenticated ? 'Authenticated' : 'Unauthenticated'}`);
+    
+    if (!isAuthenticated) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("callbackUrl", path);
+      return NextResponse.redirect(loginUrl);
     }
 
-    if (isAdmin && session.role !== "admin") {
-      console.log(`[Proxy] Denied access to admin route for role: ${session.role}`);
-      return NextResponse.redirect(new URL("/", req.url));
+    // Role-based protection for /admin
+    if (path.startsWith("/admin") && session?.role !== "admin") {
+      console.log(`[Proxy] Denied access to admin route for user ${session?.email}`);
+      return NextResponse.redirect(new URL("/", request.url));
     }
   }
 
@@ -28,5 +81,7 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/write", "/admin", "/admin/:path*"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+  ],
 };
