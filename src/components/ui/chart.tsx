@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
@@ -99,6 +100,13 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed";
       nameKey?: string;
       labelKey?: string;
+      payload?: any[];
+      active?: boolean;
+      color?: string;
+      formatter?: any;
+      label?: any;
+      labelFormatter?: any;
+      labelClassName?: string;
     }
 >(
   (
@@ -231,7 +239,9 @@ const ChartLegend = RechartsPrimitive.Legend;
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+    Omit<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+      payload?: any[];
+      verticalAlign?: "top" | "bottom" | "middle";
       hideIcon?: boolean;
       nameKey?: string;
     }
