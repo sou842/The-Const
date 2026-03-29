@@ -1,10 +1,46 @@
-import { TrendingUp, Hash } from "lucide-react";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { TrendingUp, Hash, Search, Loader2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { PostCard } from "@/components/feed/PostCard";
-import { posts, trendingTopics } from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 
 export default function Explore() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [trendingTags, setTrendingTags] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchExploreData = useCallback(async (q = "") => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        q,
+        sort: "popular", // Usually explore shows popular content
+      });
+      const res = await fetch(`/api/blogs/explore?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBlogs(data.blogs);
+        if (data.trendingTags) setTrendingTags(data.trendingTags);
+      }
+    } catch (error) {
+      console.error("Failed to fetch explore data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchExploreData(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, fetchExploreData]);
+
   return (
     <AppLayout>
       <div className="pb-20 md:pb-4 space-y-6">
@@ -14,20 +50,38 @@ export default function Explore() {
             <h1 className="text-2xl font-bold">Explore</h1>
           </div>
 
+          {/* Minimal Search Bar based on original UI needs */}
+          {/* <div className="relative mb-6">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search trending topics..." 
+              className="pl-10 h-10 bg-muted/50 border-none rounded-xl"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div> */}
+
           <div className="bg-card rounded-xl border p-4 mb-6">
             <h3 className="font-display font-semibold text-sm mb-3 flex items-center gap-2">
               <Hash className="h-4 w-4" /> Trending Now
             </h3>
             <div className="flex flex-wrap gap-2">
-              {trendingTopics.map((t) => (
-                <button
-                  key={t.tag}
-                  className="px-4 py-2 bg-muted rounded-full text-sm font-medium hover:bg-accent transition-colors"
-                >
-                  {t.tag}
-                  <span className="text-xs text-muted-foreground ml-2">{t.posts}</span>
-                </button>
-              ))}
+              {loading && trendingTags.length === 0 ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-24 rounded-full" />
+                ))
+              ) : (
+                trendingTags.map((t) => (
+                  <button
+                    key={t.tag}
+                    onClick={() => setSearchQuery(t.tag)}
+                    className="px-4 py-2 bg-muted rounded-full text-sm font-medium hover:bg-accent hover:text-primary transition-all flex items-center gap-2"
+                  >
+                    #{t.tag}
+                    <span className="text-xs text-muted-foreground opacity-60">{t.posts}</span>
+                  </button>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -35,9 +89,37 @@ export default function Explore() {
         <div>
           <h2 className="font-display font-semibold mb-4">Popular Posts</h2>
           <div className="space-y-4">
-            {posts.map((post) => (
-              <PostCard key={post.id} {...post} />
-            ))}
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-4 p-4 border rounded-xl animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-40 w-full rounded-lg" />
+                </div>
+              ))
+            ) : blogs.length > 0 ? (
+              blogs.map((blog) => (
+                <PostCard 
+                  key={blog._id} 
+                  _id={blog._id}
+                  title={blog.title}
+                  author={blog.author}
+                  creator={blog.authorId}
+                  category={blog.category}
+                  url={blog.url}
+                  thumbnail={blog.thumbnail}
+                  views={blog.views}
+                  createdAt={blog.createdAt}
+                />
+              ))
+            ) : (
+              <div className="text-center py-10 opacity-60">
+                <p>No results found for your search.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

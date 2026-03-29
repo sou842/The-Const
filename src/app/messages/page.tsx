@@ -69,7 +69,7 @@ function MessagesPageInner() {
   const pathname = usePathname();
   const activeConvId = searchParams.get("id");
 
-  const { socket, isConnected, isUserOnline } = useSocket();
+  const { isConnected, isUserOnline } = useSocket();
   const [inputValue, setInputValue] = useState("");
   const [search, setSearch] = useState("");
   const [isStartingConv, setIsStartingConv] = useState(false);
@@ -117,7 +117,6 @@ function MessagesPageInner() {
 
   const { messages, isLoadingHistory, isSending, isOtherTyping, sendMessage, notifyTyping } =
     useChat({
-      socket,
       conversationId: activeConvId,
       currentUserId: user?._id ?? "",
     });

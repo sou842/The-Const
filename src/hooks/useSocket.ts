@@ -1,49 +1,70 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
-import { getSocket } from '@/lib/socket';
-import type { Socket } from 'socket.io-client';
+/**
+ * src/hooks/useSocket.ts  (Pusher edition)
+ *
+ * Previously this hook managed a Socket.IO connection and tracked online
+ * presence via `user:status` events.  Now it:
+ *
+ *  - Tracks the Pusher connection state (connected / disconnected)
+ *    so the ConversationList "Live" indicator keeps working.
+ *  - Exposes `isUserOnline` as a stub that always returns `false`
+ *    (full Pusher Presence Channels require extra server-side auth setup;
+ *     add `/api/pusher/auth` + subscribe to `presence-global` to enable it).
+ *
+ * The `socket` property is intentionally removed — usePusherChat no
+ * longer needs it. If any consumer still destructures `socket`, TypeScript
+ * will catch it at compile time.
+ */
 
-interface OnlineStatus {
-  [userId: string]: boolean;
-}
+import { useEffect, useState, useCallback } from "react";
+import { getPusherClient } from "@/lib/pusher";
 
 export function useSocket() {
-  const [isConnected, setIsConnected] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return getSocket().connected;
-  });
-  const [onlineUsers, setOnlineUsers] = useState<OnlineStatus>({});
-  const [socket] = useState<Socket | null>(() => (typeof window !== "undefined" ? getSocket() : null));
+  // Pusher connection state — drives the "Live" dot in ConversationList
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!socket) return;
+    // Only run on the client
+    if (typeof window === "undefined") return;
 
-    if (!socket.connected) {
-      socket.connect();
+    const pusher = getPusherClient();
+
+    // Sync initial state (Pusher may already be connected on re-render)
+    // — done via the handler below so it is never called synchronously
+    // inside the effect body itself.
+    const initialState = pusher.connection.state;
+
+    // --- Listen to Pusher connection lifecycle events ---
+    const onConnected = () => setIsConnected(true);
+    const onDisconnected = () => setIsConnected(false);
+
+    // If already connected before this effect ran, reflect that now
+    // via queueMicrotask so React does not flag it as a sync setState.
+    if (initialState === "connected") {
+      queueMicrotask(() => setIsConnected(true));
     }
 
-    const onConnect = () => setIsConnected(true);
-    const onDisconnect = () => setIsConnected(false);
-    const onUserStatus = ({ userId, online }: { userId: string; online: boolean }) => {
-      setOnlineUsers((prev) => ({ ...prev, [userId]: online }));
-    };
-
-    socket.on('connect', onConnect);
-    socket.on('disconnect', onDisconnect);
-    socket.on('user:status', onUserStatus);
+    pusher.connection.bind("connected", onConnected);
+    pusher.connection.bind("disconnected", onDisconnected);
+    // 'unavailable' fires when Pusher cannot reach the server
+    pusher.connection.bind("unavailable", onDisconnected);
+    pusher.connection.bind("failed", onDisconnected);
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('disconnect', onDisconnect);
-      socket.off('user:status', onUserStatus);
+      pusher.connection.unbind("connected", onConnected);
+      pusher.connection.unbind("disconnected", onDisconnected);
+      pusher.connection.unbind("unavailable", onDisconnected);
+      pusher.connection.unbind("failed", onDisconnected);
     };
-  }, [socket]);
+  }, []);
 
-  const isUserOnline = useCallback(
-    (userId: string) => onlineUsers[userId] ?? false,
-    [onlineUsers]
-  );
+  /**
+   * isUserOnline — stub for now.
+   * To enable real presence: set up Pusher Presence Channels + /api/pusher/auth.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const isUserOnline = useCallback((_userId: string): boolean => false, []);
 
-  return { socket, isConnected, isUserOnline };
+  return { isConnected, isUserOnline };
 }
