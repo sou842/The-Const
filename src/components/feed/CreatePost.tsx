@@ -25,7 +25,7 @@ export const CreatePost = () => {
           What&apos;s on your mind?
         </Link>
       </div>
-      <div className="flex items-center gap-1 mt-3 pt-3 border-t">
+      <div className="flex items-center gap-1 mt-3 pt-3 border-t overflow-x-auto">
         <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
           <Link href="/write">
             <ImageIcon className="h-4 w-4" /> Photo
