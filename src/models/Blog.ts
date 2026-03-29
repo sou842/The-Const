@@ -52,11 +52,10 @@ BlogSchema.pre('validate', async function() {
         const title = this.title || "untitled";
         const slug = title
             .trim()
-            .replace(/\?|\!|\.|\,|\'|\"/g, "")
+            .toLowerCase()
             .replace(/&/g, "and")
             .replace(/[^\w\s-]/g, "")
-            .replace(/\s+/g, "-")
-            .toLowerCase();
+            .replace(/\s+/g, "-");
 
         const suffix = uuidv4().split("-")[0];
         this.url = `${slug}-${suffix}`;

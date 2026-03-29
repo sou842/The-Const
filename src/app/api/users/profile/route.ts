@@ -52,7 +52,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Name cannot be empty" }, { status: 400 });
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (profession !== undefined) updateData.profession = profession;
     if (location !== undefined) updateData.location = location;

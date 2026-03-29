@@ -8,6 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, Eye } from "lucide-react";
 import type { BlogPost } from "@/types/blog";
 import { BlogEngagement } from "@/components/blog/BlogEngagement";
+import connectDB from "@/lib/db";
+import { Blog } from "@/models/Blog";
+import { Like } from "@/models/Like";
+import { Comment } from "@/models/Comment";
+import { getSession } from "@/lib/auth";
+import mongoose from "mongoose";
+
+// Register models
+void Like;
+void Comment;
 
 interface Props {
   params: Promise<{ url: string }>;
@@ -15,14 +25,36 @@ interface Props {
 
 async function getBlog(url: string): Promise<BlogPost | null> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/blogs/${url}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.blog;
-  } catch {
+    await connectDB();
+    const session = await getSession();
+
+    // Find by URL slug (the pretty URL, not _id)
+    const blogDoc = await Blog.findOne({ url }).lean();
+    if (!blogDoc) return null;
+
+    const blogId = blogDoc._id as mongoose.Types.ObjectId;
+
+    // Fetch like count and user's like status in parallel
+    const [likeCount, commentCount, userLike] = await Promise.all([
+      Like.countDocuments({ blogId }),
+      Comment.countDocuments({ blogId }),
+      session?.userId && mongoose.Types.ObjectId.isValid(session.userId)
+        ? Like.findOne({ blogId, userId: new mongoose.Types.ObjectId(session.userId) }).lean()
+        : null,
+    ]);
+
+    // Increment views (fire-and-forget — non-blocking)
+    Blog.updateOne({ url }, { $inc: { views: 1 } }).exec();
+
+    // Cast as BlogPost after adding computed fields
+    return {
+      ...(blogDoc as unknown as BlogPost),
+      likeCount,
+      commentCount,
+      isLikedByUser: !!userLike,
+    };
+  } catch (err) {
+    console.error("Direct fetch blog error:", err);
     return null;
   }
 }

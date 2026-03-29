@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 import { getter } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function useNotifications() {

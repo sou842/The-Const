@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { MapPin, Calendar, Loader2 } from "lucide-react";
 import { SkeletonLoader } from "@/components/common/skeleton/skeleton";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -96,7 +97,7 @@ export default function PublicProfile({ params }: { params: Promise<{ id: string
             <div className="flex items-center gap-2 shrink-0">
               {isOwnProfile ? (
                 <Button variant="outline" size="sm" asChild>
-                  <a href="/profile">Edit Profile</a>
+                  <Link href="/profile">Edit Profile</Link>
                 </Button>
               ) : (
                 <ConnectionButton targetUserId={id} size="default" />

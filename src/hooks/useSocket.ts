@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { getSocket, disconnectSocket } from '@/lib/socket';
+import { getSocket } from '@/lib/socket';
 import type { Socket } from 'socket.io-client';
 
 interface OnlineStatus {
@@ -9,16 +9,18 @@ interface OnlineStatus {
 }
 
 export function useSocket() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [isConnected, setIsConnected] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return getSocket().connected;
+  });
   const [onlineUsers, setOnlineUsers] = useState<OnlineStatus>({});
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket] = useState<Socket | null>(() => (typeof window !== "undefined" ? getSocket() : null));
 
   useEffect(() => {
-    const s = getSocket();
-    setSocket(s);
+    if (!socket) return;
 
-    if (!s.connected) {
-      s.connect();
+    if (!socket.connected) {
+      socket.connect();
     }
 
     const onConnect = () => setIsConnected(true);
@@ -27,18 +29,16 @@ export function useSocket() {
       setOnlineUsers((prev) => ({ ...prev, [userId]: online }));
     };
 
-    s.on('connect', onConnect);
-    s.on('disconnect', onDisconnect);
-    s.on('user:status', onUserStatus);
-
-    if (s.connected) setIsConnected(true);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('user:status', onUserStatus);
 
     return () => {
-      s.off('connect', onConnect);
-      s.off('disconnect', onDisconnect);
-      s.off('user:status', onUserStatus);
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('user:status', onUserStatus);
     };
-  }, []);
+  }, [socket]);
 
   const isUserOnline = useCallback(
     (userId: string) => onlineUsers[userId] ?? false,

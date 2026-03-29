@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
       { message: "User created successfully", user: { id: newUser._id, name, email, role: newUser.role } },
       { status: 201 }
     );
-  } catch (error: any) {
-    console.error("User creation error:", error);
+  } catch (err: unknown) {
+    console.error("User creation error:", err);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: err instanceof Error ? err.message : "Internal server error" },
       { status: 500 }
     );
   }

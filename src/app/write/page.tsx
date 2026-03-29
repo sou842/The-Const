@@ -81,7 +81,7 @@ export default function WritePage() {
         content: blocks,
         category,
         tags,
-        url: title.trim().toLowerCase().replace(/\s+/g, "-"),
+        url: title.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
         thumbnail: { image: thumbnailUrl, title: title.trim() },
         language: "en",
       });

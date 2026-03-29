@@ -10,7 +10,7 @@ import { Server as HTTPServer } from 'http';
 import { jwtVerify } from 'jose';
 import mongoose from 'mongoose';
 import connectDB from './db.js';
-import { encryptMessage, sanitizeMessage, decryptMessage } from './crypto.js';
+import { encryptMessage, sanitizeMessage } from './crypto.js';
 
 // Inline these to avoid circular deps from Next.js module system
 const COOKIE_NAME = 'tc_session';
@@ -63,6 +63,7 @@ export function initSocketServer(httpServer: HTTPServer): SocketIOServer {
   });
 
   // Attach to global to make io accessible in API routes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (global as any).io = io;
 
   // ─── Auth Middleware ────────────────────────────────────────────────────────

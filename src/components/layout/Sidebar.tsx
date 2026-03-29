@@ -1,6 +1,6 @@
 "use client";
 
-import { Home, User, Compass, Bell, Settings, Users, Bookmark, PenLine, ShieldCheck, MessageCircle } from "lucide-react";
+import { Home, User, Compass, Bell, Settings, Users, Bookmark, ShieldCheck, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
