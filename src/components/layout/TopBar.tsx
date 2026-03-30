@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const TopBar = () => {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
   const { unreadCount } = useNotifications();
 
@@ -50,7 +50,12 @@ export const TopBar = () => {
       </div>
 
       <div className="ml-auto flex items-center gap-1">
-        {user ? (
+        {loading ? (
+          <div className="flex items-center gap-3">
+            <div className="hidden md:block h-8 w-20 bg-muted animate-pulse rounded-md" />
+            <div className="h-8 w-8 bg-muted animate-pulse rounded-full" />
+          </div>
+        ) : user ? (
           <>
             <Button variant="ghost" size="sm" asChild className="gap-1.5 hidden md:flex">
               <Link href="/write">

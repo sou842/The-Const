@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, JWTPayload } from "jose";
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "THECONST");
 const COOKIE_NAME = "tc_session";
@@ -19,7 +19,7 @@ const PROTECTED_ROUTES = [
   "/profile",
 ];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { nextUrl, cookies } = request;
   const path = nextUrl.pathname;
 
@@ -32,7 +32,7 @@ export async function proxy(request: NextRequest) {
   const token = cookies.get(COOKIE_NAME)?.value;
 
   // 3. Verify session if token exists
-  let session: any = null;
+  let session: JWTPayload | null = null;
   if (token) {
     try {
       const { payload } = await jwtVerify(token, SECRET);

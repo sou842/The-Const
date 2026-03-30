@@ -19,7 +19,7 @@ export const MobileNav = () => {
   const { unreadCount } = useNotifications();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t flex md:hidden">
+    <nav className="w-full p-1 fixed bottom-0 left-0 right-0 z-50 bg-card border-t flex md:hidden">
       {items.map((item) => {
         const isActive = pathname === item.href;
         return (

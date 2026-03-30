@@ -38,20 +38,20 @@ interface PostCardProps {
 }
 
 export const PostCard = (props: PostCardProps) => {
-  const { 
-    author, 
-    content, 
-    title, 
-    body, 
-    thumbnail, 
-    image, 
-    time, 
-    createdAt, 
+  const {
+    author,
+    content,
+    title,
+    body,
+    thumbnail,
+    image,
+    time,
+    createdAt,
     likeCount = 0,
     isLikedByUser = false,
-    commentCount = 0, 
-    views, 
-    category, 
+    commentCount = 0,
+    views,
+    category,
     url,
     status,
     onStatusUpdate,
@@ -109,7 +109,7 @@ export const PostCard = (props: PostCardProps) => {
     e.stopPropagation();
     const newSaved = !saved;
     setSaved(newSaved);
-    
+
     if (props._id) {
       try {
         await fetch("/api/saved", {
@@ -165,37 +165,52 @@ export const PostCard = (props: PostCardProps) => {
     <article className="bg-card rounded-xl border p-4 animate-fade-in hover:shadow-md transition-shadow">
       <div className="flex items-start gap-3">
         {authorId ? (
-          <Link href={`/profile/${authorId}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Link href={`/profile/${authorId}`} className="hidden sm:block shrink-0" onClick={(e) => e.stopPropagation()}>
             <Avatar className="h-10 w-10">
               <AvatarImage src={authorAvatar} />
               <AvatarFallback>{authorInitials}</AvatarFallback>
             </Avatar>
           </Link>
         ) : (
-          <Avatar className="h-10 w-10 shrink-0">
+          <Avatar className="hidden sm:block h-10 w-10 shrink-0">
             <AvatarImage src={authorAvatar} />
             <AvatarFallback>{authorInitials}</AvatarFallback>
           </Avatar>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between">
-            {authorId ? (
-              <Link href={`/profile/${authorId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              {authorId ? (
+                <Link href={`/profile/${authorId}`} className="block sm:hidden shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={authorAvatar} />
+                    <AvatarFallback>{authorInitials}</AvatarFallback>
+                  </Avatar>
+                </Link>
+              ) : (
+                <Avatar className="block sm:hidden h-10 w-10 shrink-0">
+                  <AvatarImage src={authorAvatar} />
+                  <AvatarFallback>{authorInitials}</AvatarFallback>
+                </Avatar>
+              )}
+              {authorId ? (
+                <Link href={`/profile/${authorId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                  <div>
+                    <p className="font-semibold text-sm">{authorName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {authorTitle ? `${authorTitle} · ` : ""}{displayTime}
+                    </p>
+                  </div>
+                </Link>
+              ) : (
                 <div>
                   <p className="font-semibold text-sm">{authorName}</p>
                   <p className="text-xs text-muted-foreground">
                     {authorTitle ? `${authorTitle} · ` : ""}{displayTime}
                   </p>
                 </div>
-              </Link>
-            ) : (
-              <div>
-                <p className="font-semibold text-sm">{authorName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {authorTitle ? `${authorTitle} · ` : ""}{displayTime}
-                </p>
-              </div>
-            )}
+              )}
+            </div>
             <div className="flex items-center gap-1">
               {status && status !== "approved" && (
                 <Badge variant={status === "pending" ? "outline" : "destructive"} className="text-[10px] px-1.5 h-5 capitalize">
@@ -244,7 +259,7 @@ export const PostCard = (props: PostCardProps) => {
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-8 gap-1.5 px-2 transition-colors", liked && "text-rose-500 hover:text-rose-600")}
+                className={cn("h-8 gap-1.5 px-2 transition-colors hover:bg-transparent", liked && "text-rose-500 hover:text-rose-600")}
                 onClick={handleLike}
               >
                 <Heart className={cn("h-4 w-4 transition-all", liked && "fill-rose-500 scale-110")} />
@@ -252,7 +267,7 @@ export const PostCard = (props: PostCardProps) => {
               </Button>
 
               {/* Comment Button — links to blog#comments */}
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2" asChild>
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2 hover:bg-transparent" asChild>
                 <Link href={url ? `/blog/${url}#comments` : "#"} onClick={(e) => e.stopPropagation()}>
                   <MessageCircle className="h-4 w-4" />
                   <span className="text-xs">{commentCount}</span>
@@ -260,7 +275,7 @@ export const PostCard = (props: PostCardProps) => {
               </Button>
 
               {/* Share Button */}
-              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={handleShare}>
+              <Button variant="ghost" size="sm" className="h-8 px-2 hover:bg-transparent" onClick={handleShare}>
                 <Share2 className="h-4 w-4" />
               </Button>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,6 @@ import { Eye, EyeOff, ArrowRight, Mail, Lock, Loader2 } from "lucide-react";
 function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const { toast } = useToast();
@@ -43,7 +42,7 @@ function LoginForm() {
         title: "Welcome back!", 
         description: `Logged in as ${data.user.name}` 
       });
-      router.push(callbackUrl);
+      window.location.href = callbackUrl;
     } catch (error) {
       toast({ 
         variant: "destructive", 
