@@ -14,6 +14,7 @@ import { Like } from "@/models/Like";
 import { Comment } from "@/models/Comment";
 import { getSession } from "@/lib/auth";
 import mongoose from "mongoose";
+import { cache } from "react";
 
 // Register models
 void Like;
@@ -23,7 +24,7 @@ interface Props {
   params: Promise<{ url: string }>;
 }
 
-async function getBlog(url: string): Promise<BlogPost | null> {
+const getBlog = cache(async (url: string): Promise<BlogPost | null> => {
   try {
     await connectDB();
     const session = await getSession();
@@ -57,7 +58,7 @@ async function getBlog(url: string): Promise<BlogPost | null> {
     console.error("Direct fetch blog error:", err);
     return null;
   }
-}
+});
 
 export default async function BlogReadPage({ params }: Props) {
   const { url } = await params;

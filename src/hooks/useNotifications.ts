@@ -11,20 +11,39 @@
  * the relevant API routes (e.g. when a new connection request arrives).
  */
 
+import { useEffect } from "react";
 import useSWR from "swr";
 import { getter } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPusherClient } from "@/lib/pusher";
 
 export function useNotifications() {
   const { user } = useAuth();
 
-  // Poll for notifications every 8 seconds when the user is logged in.
-  // revalidateOnFocus keeps the count fresh when the user switches tabs.
+  // Initial fetch of notifications
   const { data, mutate } = useSWR(
     user ? "/api/notifications" : null,
     getter,
-    { refreshInterval: 8000, revalidateOnFocus: true }
+    { revalidateOnFocus: true }
   );
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const pusher = getPusherClient();
+    const channelName = `user_${user._id}`;
+    const channel = pusher.subscribe(channelName);
+
+    // When a new notification is pushed from the server
+    channel.bind("notification:new", () => {
+      // Re-fetch the notification list to get the full object and update count
+      mutate();
+    });
+
+    return () => {
+      pusher.unsubscribe(channelName);
+    };
+  }, [user?._id, mutate]);
 
   const unreadCount = data?.notifications
     ? data.notifications.filter(

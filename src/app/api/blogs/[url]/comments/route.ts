@@ -5,6 +5,7 @@ import { Comment } from '@/models/Comment';
 import { User } from '@/models/User';
 import { Notification } from '@/models/Notification';
 import { getSession } from '@/lib/auth';
+import { pusherServer } from '@/lib/pusher';
 import mongoose from 'mongoose';
 
 // GET /api/blogs/[url]/comments?page=1&limit=20
@@ -102,11 +103,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ url: st
         blogId,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const globalWithIo = global as any;
-      if (globalWithIo.io) {
-        globalWithIo.io.to(`user:${blog.authorId.toString()}`).emit('notification:new', notif);
-      }
+      // Real-time live push via Pusher
+      await pusherServer.trigger(
+        `user_${blog.authorId.toString()}`,
+        "notification:new",
+        notif
+      );
     }
 
     // Return the accurate comment count directly from the collection

@@ -3,11 +3,13 @@
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSaved } from "@/contexts/SavedContext";
 import { toast } from "sonner";
 
 interface PostCardProps {
@@ -39,6 +41,7 @@ interface PostCardProps {
 
 export const PostCard = (props: PostCardProps) => {
   const {
+    _id,
     author,
     content,
     title,
@@ -56,20 +59,26 @@ export const PostCard = (props: PostCardProps) => {
     status,
     onStatusUpdate,
     creator,
-    isSaved = false,
   } = props;
 
+  const router = useRouter();
   const { user } = useAuth();
+  const { isSaved: checkIsSaved, toggleSave } = useSaved();
 
-  // Sync liked/likeCount state when props change (e.g., parent SWR refetch)
   const [liked, setLiked] = useState(isLikedByUser);
-  const [saved, setSaved] = useState(isSaved);
   const [likeCountState, setLikeCountState] = useState(likeCount);
+  const isBookmarked = _id ? checkIsSaved(_id) : false;
 
   useEffect(() => {
     setLiked(isLikedByUser);
     setLikeCountState(likeCount);
   }, [isLikedByUser, likeCount]);
+
+  const handleCardClick = () => {
+    if (url) {
+      router.push(`/blog/${url}`);
+    }
+  };
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -79,9 +88,8 @@ export const PostCard = (props: PostCardProps) => {
       toast.error("Please log in to like a post");
       return;
     }
-    if (!props._id) return;
+    if (!_id) return;
 
-    // Optimistic update
     const prevLiked = liked;
     const prevCount = likeCountState;
     const newLiked = !liked;
@@ -89,15 +97,12 @@ export const PostCard = (props: PostCardProps) => {
     setLikeCountState((c) => Math.max(0, newLiked ? c + 1 : c - 1));
 
     try {
-      const res = await fetch(`/api/blogs/${props._id}/like`, { method: "POST" });
+      const res = await fetch(`/api/blogs/${_id}/like`, { method: "POST" });
       if (!res.ok) throw new Error("Failed");
-
-      // Sync with server-returned counts
       const data = await res.json();
       setLiked(data.isLiked);
       setLikeCountState(data.likeCount);
     } catch {
-      // Revert on failure
       setLiked(prevLiked);
       setLikeCountState(prevCount);
       toast.error("Failed to update like");
@@ -107,20 +112,9 @@ export const PostCard = (props: PostCardProps) => {
   const handleSave = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const newSaved = !saved;
-    setSaved(newSaved);
-
-    if (props._id) {
-      try {
-        await fetch("/api/saved", {
-          method: newSaved ? "POST" : "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ blogId: props._id }),
-        });
-      } catch {
-        setSaved(!newSaved);
-        toast.error("Failed to save post");
-      }
+    if (_id) {
+        // Pass the whole post object for IDB storage
+        await toggleSave(props as any);
     }
   };
 
@@ -161,11 +155,14 @@ export const PostCard = (props: PostCardProps) => {
     ? new Date(createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : "");
 
-  const cardContent = (
-    <article className="bg-card rounded-xl border p-4 animate-fade-in hover:shadow-md transition-shadow">
+  return (
+    <article 
+      onClick={handleCardClick}
+      className="bg-card rounded-xl border p-4 animate-fade-in hover:shadow-md transition-all cursor-pointer group"
+    >
       <div className="flex items-start gap-3">
         {authorId ? (
-          <Link href={`/profile/${authorId}`} className="hidden sm:block shrink-0" onClick={(e) => e.stopPropagation()}>
+          <Link href={`/profile/${authorId}`} className="hidden sm:block shrink-0 z-10" onClick={(e) => e.stopPropagation()}>
             <Avatar className="h-10 w-10">
               <AvatarImage src={authorAvatar} />
               <AvatarFallback>{authorInitials}</AvatarFallback>
@@ -181,7 +178,7 @@ export const PostCard = (props: PostCardProps) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {authorId ? (
-                <Link href={`/profile/${authorId}`} className="block sm:hidden shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Link href={`/profile/${authorId}`} className="block sm:hidden shrink-0 z-10" onClick={(e) => e.stopPropagation()}>
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={authorAvatar} />
                     <AvatarFallback>{authorInitials}</AvatarFallback>
@@ -194,7 +191,7 @@ export const PostCard = (props: PostCardProps) => {
                 </Avatar>
               )}
               {authorId ? (
-                <Link href={`/profile/${authorId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                <Link href={`/profile/${authorId}`} className="hover:underline z-10" onClick={(e) => e.stopPropagation()}>
                   <div>
                     <p className="font-semibold text-sm">{authorName}</p>
                     <p className="text-xs text-muted-foreground">
@@ -221,7 +218,7 @@ export const PostCard = (props: PostCardProps) => {
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="h-7 text-[10px] px-2 bg-primary/10 text-primary hover:bg-primary/20 border-none"
+                  className="h-7 text-[10px] px-2 bg-primary/10 text-primary hover:bg-primary/20 border-none z-10"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -232,14 +229,14 @@ export const PostCard = (props: PostCardProps) => {
                 </Button>
               )}
               {category && <Badge variant="outline" className="text-xs hidden sm:flex">{category}</Badge>}
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 z-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
           {title && (
-            <p className="mt-3 text-base font-semibold line-clamp-3">{title}</p>
+            <p className="mt-3 text-base font-semibold line-clamp-3 group-hover:text-primary transition-colors">{title}</p>
           )}
 
           {preview && (
@@ -247,35 +244,32 @@ export const PostCard = (props: PostCardProps) => {
           )}
 
           {coverImage && (
-            <div className="mt-3 rounded-lg overflow-hidden border">
+            <div className="mt-3 rounded-lg overflow-hidden border bg-muted/30">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={coverImage} alt={title || ""} className="w-full h-56 object-cover" />
+              <img src={coverImage} alt={title || ""} className="w-full h-56 object-cover transform transition-transform group-hover:scale-105" />
             </div>
           )}
 
           <div className="flex items-center justify-between mt-3 pt-3 border-t">
-            <div className="flex items-center gap-1">
-              {/* Like Button */}
+            <div className="flex items-center gap-1 z-10">
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-8 gap-1.5 px-2 transition-colors hover:bg-transparent", liked && "text-rose-500 hover:text-rose-600")}
+                className={cn("h-8 gap-1.5 px-2 transition-colors hover:bg-muted/50", liked && "text-rose-500 hover:text-rose-600")}
                 onClick={handleLike}
               >
                 <Heart className={cn("h-4 w-4 transition-all", liked && "fill-rose-500 scale-110")} />
-                <span className="text-xs">{likeCountState}</span>
+                <span className="text-xs font-medium">{likeCountState}</span>
               </Button>
 
-              {/* Comment Button — links to blog#comments */}
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2 hover:bg-transparent" asChild>
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2 hover:bg-muted/50" asChild>
                 <Link href={url ? `/blog/${url}#comments` : "#"} onClick={(e) => e.stopPropagation()}>
                   <MessageCircle className="h-4 w-4" />
-                  <span className="text-xs">{commentCount}</span>
+                  <span className="text-xs font-medium">{commentCount}</span>
                 </Link>
               </Button>
 
-              {/* Share Button */}
-              <Button variant="ghost" size="sm" className="h-8 px-2 hover:bg-transparent" onClick={handleShare}>
+              <Button variant="ghost" size="sm" className="h-8 px-2 hover:bg-muted/50" onClick={handleShare}>
                 <Share2 className="h-4 w-4" />
               </Button>
 
@@ -286,21 +280,17 @@ export const PostCard = (props: PostCardProps) => {
               )}
             </div>
 
-            {/* Bookmark Button */}
-            <Button variant="ghost" size="sm" className="h-8 px-2" onClick={handleSave}>
-              <Bookmark className={cn("h-4 w-4", saved && "fill-foreground")} />
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                className={cn("h-8 px-2 z-10 hover:bg-muted/50", isBookmarked && "text-primary")} 
+                onClick={handleSave}
+            >
+              <Bookmark className={cn("h-4 w-4 transition-all", isBookmarked && "fill-primary scale-110")} />
             </Button>
           </div>
         </div>
       </div>
     </article>
-  );
-
-  return url ? (
-    <Link href={`/blog/${url}`} className="block">
-      {cardContent}
-    </Link>
-  ) : (
-    cardContent
   );
 };

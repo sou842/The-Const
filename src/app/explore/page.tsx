@@ -1,45 +1,52 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, Hash, Search, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { TrendingUp, Hash } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { PostCard } from "@/components/feed/PostCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
+import useSWR from "swr";
+import { useDebounce } from "@/hooks/use-debounce";
+import { getter } from "@/lib/api";
+
+interface Blog {
+  _id: string;
+  title: string;
+  author: string;
+  authorId: {
+    _id: string;
+    name: string;
+    profilePhoto?: string;
+    username?: string;
+    profession?: string;
+  };
+  category: string;
+  url: string;
+  thumbnail: {
+    image?: string;
+    title?: string;
+  };
+  views: number;
+  createdAt: string;
+}
+
+interface TrendingTag {
+  tag: string;
+  posts: number;
+}
 
 export default function Explore() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [blogs, setBlogs] = useState<any[]>([]);
-  const [trendingTags, setTrendingTags] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-  const fetchExploreData = useCallback(async (q = "") => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        q,
-        sort: "popular", // Usually explore shows popular content
-      });
-      const res = await fetch(`/api/blogs/explore?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setBlogs(data.blogs);
-        if (data.trendingTags) setTrendingTags(data.trendingTags);
-      }
-    } catch (error) {
-      console.error("Failed to fetch explore data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data, isLoading } = useSWR(
+    `/api/blogs/explore?q=${debouncedSearchQuery}&sort=popular`,
+    getter
+  );
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchExploreData(searchQuery);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [searchQuery, fetchExploreData]);
+  const blogs: Blog[] = data?.blogs || [];
+  const trendingTags: TrendingTag[] = data?.trendingTags || [];
 
   return (
     <AppLayout>
@@ -66,12 +73,12 @@ export default function Explore() {
               <Hash className="h-4 w-4" /> Trending Now
             </h3>
             <div className="flex flex-wrap gap-2">
-              {loading && trendingTags.length === 0 ? (
+              {isLoading && trendingTags.length === 0 ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <Skeleton key={i} className="h-9 w-24 rounded-full" />
                 ))
               ) : (
-                trendingTags.map((t) => (
+                trendingTags.map((t: TrendingTag) => (
                   <button
                     key={t.tag}
                     onClick={() => setSearchQuery(t.tag)}
@@ -89,7 +96,7 @@ export default function Explore() {
         <div>
           <h2 className="font-display font-semibold mb-4">Popular Posts</h2>
           <div className="space-y-4">
-            {loading ? (
+            {isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="space-y-4 p-4 border rounded-xl animate-pulse">
                   <div className="flex items-center gap-3">
@@ -101,7 +108,7 @@ export default function Explore() {
                 </div>
               ))
             ) : blogs.length > 0 ? (
-              blogs.map((blog) => (
+              blogs.map((blog: Blog) => (
                 <PostCard 
                   key={blog._id} 
                   _id={blog._id}
