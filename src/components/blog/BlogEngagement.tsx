@@ -30,17 +30,25 @@ interface CommentItem {
 
 interface BlogEngagementProps {
   blogId: string;
+  blogUrl: string; // Added to enable view tracking via URL
   initialLikeCount: number;
   initialIsLiked: boolean;
 }
 
-export const BlogEngagement = ({ blogId, initialLikeCount, initialIsLiked }: BlogEngagementProps) => {
+export const BlogEngagement = ({ blogId, blogUrl, initialLikeCount, initialIsLiked }: BlogEngagementProps) => {
   const { user } = useAuth();
   const commentFormRef = useRef<HTMLTextAreaElement>(null);
 
   const [liked, setLiked] = useState(initialIsLiked);
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [commentContent, setCommentContent] = useState("");
+
+  // Tracking views client-side to keep the main page static/cacheable
+  useEffect(() => {
+    if (blogUrl) {
+      fetch(`/api/blogs/${blogUrl}/view`, { method: "POST" }).catch(console.error);
+    }
+  }, [blogUrl]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch the REAL like status client-side.

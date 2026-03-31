@@ -52,7 +52,7 @@ export function SavedProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (data?.savedBlogs) {
       const blogs = data.savedBlogs;
-      const ids = new Set(blogs.map((b: Blog) => b._id));
+      const ids = new Set<string>(blogs.map((b: Blog) => b._id));
       setLocalSavedIds(ids);
       
       const syncDB = async () => {

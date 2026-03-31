@@ -20,17 +20,36 @@ import { cache } from "react";
 void Like;
 void Comment;
 
+// ISR Configuration: Revalidate every hour
+export const revalidate = 3600;
+
+// Allow other dynamic URLs to be generated on-demand
+export const dynamicParams = true;
+
 interface Props {
   params: Promise<{ url: string }>;
+}
+
+export async function generateStaticParams() {
+  try {
+    await connectDB();
+    const blogs = await Blog.find({ status: "approved" }).select("url").lean();
+    return blogs.map((blog) => ({
+      url: blog.url,
+    }));
+  } catch (err) {
+    console.error("Error generating static params:", err);
+    return [];
+  }
 }
 
 const getBlog = cache(async (url: string): Promise<BlogPost | null> => {
   try {
     await connectDB();
-    const session = await getSession();
+    const session = await getSession().catch(() => null);
 
     // Find by URL slug (the pretty URL, not _id)
-    const blogDoc = await Blog.findOne({ url }).lean();
+    const blogDoc = await Blog.findOne({ url, status: "approved" }).lean();
     if (!blogDoc) return null;
 
     const blogId = blogDoc._id as mongoose.Types.ObjectId;
@@ -43,9 +62,6 @@ const getBlog = cache(async (url: string): Promise<BlogPost | null> => {
         ? Like.findOne({ blogId, userId: new mongoose.Types.ObjectId(session.userId) }).lean()
         : null,
     ]);
-
-    // Increment views (fire-and-forget — non-blocking)
-    Blog.updateOne({ url }, { $inc: { views: 1 } }).exec();
 
     // Cast as BlogPost after adding computed fields
     return {
@@ -154,6 +170,7 @@ export default async function BlogReadPage({ params }: Props) {
         {/* Engagement Footer & Comments */}
         <BlogEngagement
           blogId={String(blog._id)}
+          blogUrl={blog.url}
           initialLikeCount={blog.likeCount ?? 0}
           initialIsLiked={blog.isLikedByUser ?? false}
         />
