@@ -1,12 +1,9 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { EditorJsRenderer } from "@/components/blog/EditorJsRenderer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, Eye } from "lucide-react";
-import type { BlogPost } from "@/types/blog";
+import type { BlogPost, EditorBlock } from "@/types/blog";
+
 import { BlogEngagement } from "@/components/blog/BlogEngagement";
 import connectDB from "@/lib/db";
 import { Blog } from "@/models/Blog";
@@ -82,21 +79,6 @@ export default async function BlogReadPage({ params }: Props) {
 
   if (!blog) notFound();
 
-  const authorInitials = blog.author
-    ?.split(" ")
-    .map((w: string) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2) ?? "AU";
-
-  const formattedDate = blog.publishedDate
-    ? new Date(blog.publishedDate).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
-
   return (
     <AppLayout>
       <div className="pb-20 md:pb-8 animate-fade-in">
@@ -151,11 +133,12 @@ export default async function BlogReadPage({ params }: Props) {
           </div>
         </div> */}
 
-        {/* Blog Content */}
         <article className="mb-8">
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {blog.body && blog?.body?.map((block: any, index: number) => <EditorJsRenderer key={index} block={(block as unknown as any[]) || []} />)}
+          {blog.body && (blog.body as EditorBlock[]).map((block: EditorBlock, index: number) => (
+            <EditorJsRenderer key={index} block={block} isFirst={index === 0} />
+          ))}
         </article>
+
 
         {/* Engagement Footer & Comments */}
         <BlogEngagement

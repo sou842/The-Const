@@ -127,22 +127,23 @@ export default function AdminPage() {
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs">
-                            {blog.author?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
+                            {blog.author ? blog.author.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2) : "AU"}
                           </AvatarFallback>
                         </Avatar>
                         <span>{blog.author}</span>
                         <span>·</span>
-                        <span>{new Date(blog.createdAt).toLocaleDateString()}</span>
+                        <span>{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : "No date"}</span>
                       </div>
 
                       {/* Tags */}
-                      {blog.tags?.length > 0 && (
+                      {blog.tags && blog.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {blog.tags.map((tag: string) => (
                             <Badge key={tag} variant="secondary" className="text-xs">#{tag}</Badge>
                           ))}
                         </div>
                       )}
+
 
                       <Separator />
 

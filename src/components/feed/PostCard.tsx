@@ -15,11 +15,12 @@ interface PostCardProps {
   _id?: string;
   author: string | { _id?: string; name: string; avatar?: string; title?: string; initials?: string };
   content?: string;
-  body?: object[];
+  body?: any[];
   thumbnail?: { image?: string; title?: string; description?: string };
   image?: string;
   time?: string;
-  createdAt?: string;
+  createdAt?: string | Date;
+  publishedDate?: string | Date;
   likeCount?: number;
   isLikedByUser?: boolean;
   commentCount?: number;

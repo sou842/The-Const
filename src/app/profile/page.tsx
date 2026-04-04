@@ -91,36 +91,6 @@ export default function Profile() {
     }
   };
 
-    const postToApi = async (retryCount = 0): Promise<void> => {
-    try {
-      console.log(`[Executor] Posting to ingest API (attempt ${retryCount + 1}/5)...`);
-      const response = await fetch('http://localhost:3000/api/external/ingest-blog', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-token': 'fallback_development_token_change_me',
-        },
-        body: JSON.stringify(testblog),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API returned ${response.status}: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('[Executor] Successfully ingested blog via API:', result);
-    } catch (e) {
-      console.error(`[Executor] API call failed (attempt ${retryCount + 1}):`, e);
-      if (retryCount < 4) {
-        // Wait 2 seconds between retries
-        await new Promise(r => setTimeout(r, 2000));
-        await postToApi(retryCount + 1);
-      } else {
-        console.error('[Executor] API call failed after 5 attempts. Giving up.');
-      }
-    }
-  };
 
   if (authLoading || profileLoading) {
     return (
@@ -183,7 +153,7 @@ export default function Profile() {
                 {profile.location && (
                   <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {profile.location}</span>
                 )}
-                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
+                <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Joined {profile.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'Recent'}</span>
               </div>
               <div className="flex items-center gap-4 mt-3 text-sm">
                 <span><strong>{connectionsData?.total ?? 0}</strong> <span className="text-muted-foreground">connections</span></span>
