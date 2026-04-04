@@ -4,41 +4,10 @@ import { FC, Fragment, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { getRandomFallbackImage } from "@/lib/blogUtils";
-import { ComponentType } from "react";
-import type { ReactPlayerProps } from "@/types/react-player";
 import { EditorBlock } from "@/types/blog";
 
-const ReactPlayer = dynamic(() => import("react-player").then(mod => mod.default), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full aspect-video bg-muted/30 border border-border rounded-sm animate-pulse flex items-center justify-center">
-      <span className="text-sm font-medium uppercase tracking-widest text-muted-foreground">Loading video...</span>
-    </div>
-  ),
-}) as ComponentType<ReactPlayerProps>;
 
-/**
- * Builds a safe YouTube embed URL from a video ID.
- * Uses youtube-nocookie.com for enhanced privacy.
- */
-function buildYoutubeEmbedUrl(videoId: string, options: { loop?: boolean; autoplay?: boolean; mute?: boolean } = {}): string {
-  const { loop = false, autoplay = false, mute = false } = options;
-  const params = new URLSearchParams({
-    rel: "0",
-    modestbranding: "1",
-    enablejsapi: "0",
-  });
-
-  if (autoplay) params.set("autoplay", "1");
-  if (mute) params.set("mute", "1");
-  if (loop) {
-    params.set("loop", "1");
-    params.set("playlist", videoId); // required for loop to work
-  }
-
-  // youtube-nocookie.com is YouTube's privacy-enhanced embed domain
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
-}
+import { buildYoutubeEmbedUrl } from "@/lib/videoUtils";
 
 /**
  * Sanitizes text to prevent XSS when used in HTML contexts.

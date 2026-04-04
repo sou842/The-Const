@@ -51,7 +51,7 @@ export const Sidebar = () => {
               <item.icon className="h-5 w-5" />
               <span>{item?.label}</span>
               {item?.label === 'Notifications' && unreadCount > 0 && (
-                <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-bold p-1 rounded-full w-fit text-center shadow-sm">
+                <span className="ml-auto bg-destructive text-destructive-foreground text-xs font-bold py-0 px-2 rounded-full w-fit text-center shadow-sm">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}

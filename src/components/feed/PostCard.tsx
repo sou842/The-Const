@@ -1,11 +1,12 @@
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Eye, ArrowUpRight } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { extractYoutubeId, buildYoutubeEmbedUrl } from "@/lib/videoUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaved } from "@/contexts/SavedContext";
 import { toast } from "sonner";
@@ -16,10 +17,10 @@ interface PostCardProps {
   author: string | { _id?: string; name: string; avatar?: string; title?: string; initials?: string };
   content?: string;
   body?: any[];
-  thumbnail?: { 
+  thumbnail?: {
     type?: 'image' | 'multiple-images' | 'video';
-    image?: string; 
-    title?: string; 
+    image?: string;
+    title?: string;
     description?: string;
     url?: string;
     urls?: string[];
@@ -216,7 +217,7 @@ export const PostCard = (props: PostCardProps) => {
               } else {
                 // If sync fails, at least update to intended state locally
                 setLiked(intendedLikeState.current);
-                setLikeCountState((prev) => 
+                setLikeCountState((prev) =>
                   Math.max(0, intendedLikeState.current ? prev + 1 : prev - 1)
                 );
               }
@@ -225,7 +226,7 @@ export const PostCard = (props: PostCardProps) => {
                 console.error("Sync failed:", syncError);
                 // Update to intended state locally
                 setLiked(intendedLikeState.current);
-                setLikeCountState((prev) => 
+                setLikeCountState((prev) =>
                   Math.max(0, intendedLikeState.current ? prev + 1 : prev - 1)
                 );
               }
@@ -307,8 +308,8 @@ export const PostCard = (props: PostCardProps) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const shareUrl = url 
-      ? `${window.location.origin}/blog/${url}` 
+    const shareUrl = url
+      ? `${window.location.origin}/blog/${url}`
       : window.location.href;
 
     try {
@@ -332,6 +333,8 @@ export const PostCard = (props: PostCardProps) => {
       }
     }
   }, [url, title]);
+
+
 
   // Safe author data extraction
   const authorName = typeof author === "string" ? author : author?.name || "Anonymous";
@@ -368,48 +371,47 @@ export const PostCard = (props: PostCardProps) => {
   }, [content, body]);
 
   const preview = getBodyPreview();
-  
+
   const isVideo = thumbnail?.type === 'video';
   const isGallery = thumbnail?.type === 'multiple-images';
   const hasMedia = !!(thumbnail?.image || image || thumbnail?.url || (thumbnail?.urls && thumbnail.urls.length > 0));
 
-  const getYoutubeEmbedUrl = (url?: string) => {
-    if (!url) return null;
-    try {
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-      const match = url.match(regExp);
-      if (match && match[2].length === 11) {
-        return `https://www.youtube.com/embed/${match[2]}?autoplay=1&mute=1&loop=${thumbnail?.loop ? 1 : 0}&playlist=${match[2]}`;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
+  const embedUrl = useMemo(() => {
+    if (!thumbnail?.url || thumbnail.type !== 'video') return null;
+    const videoId = extractYoutubeId(thumbnail.url);
+    if (!videoId) return null;
+
+    const isLoop = thumbnail.loop === true || String(thumbnail.loop) === "true";
+    return buildYoutubeEmbedUrl(videoId, { 
+      loop: isLoop, 
+      autoplay: isLoop, 
+      mute: true 
+    });
+  }, [thumbnail]);
 
   const displayTime = time ?? (createdAt
     ? (() => {
-        try {
-          return new Date(createdAt).toLocaleDateString("en-US", { 
-            month: "short", 
-            day: "numeric" 
-          });
-        } catch {
-          return "";
-        }
-      })()
+      try {
+        return new Date(createdAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric"
+        });
+      } catch {
+        return "";
+      }
+    })()
     : "");
 
   return (
-    <article 
+    <article
       onClick={handleCardClick}
       className="group relative cursor-pointer mb-6"
       aria-label={title || "Blog post"}
       role="article"
     >
       {/* Decorative accent line */}
-      <div 
-        className="absolute -left-px top-6 bottom-6 w-[2px] bg-linear-to-b from-transparent via-foreground/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" 
+      <div
+        className="absolute -left-px top-6 bottom-6 w-[2px] bg-linear-to-b from-transparent via-foreground/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
         aria-hidden="true"
       />
 
@@ -420,11 +422,11 @@ export const PostCard = (props: PostCardProps) => {
             "relative overflow-hidden bg-muted transition-all duration-500",
             isVideo ? "aspect-video" : "h-64"
           )}>
-            {isVideo && getYoutubeEmbedUrl(thumbnail?.url) ? (
+            {isVideo && embedUrl ? (
               <div className="w-full h-full relative pointer-events-none">
                 <iframe
                   className="w-full h-full scale-[1.01]"
-                  src={getYoutubeEmbedUrl(thumbnail?.url) || ""}
+                  src={embedUrl}
                   allow="autoplay; encrypted-media"
                   loading="lazy"
                 />
@@ -433,27 +435,27 @@ export const PostCard = (props: PostCardProps) => {
             ) : isGallery && thumbnail?.urls && thumbnail.urls.length > 0 ? (
               <div className="w-full h-full flex gap-1 p-0.5">
                 <div className="flex-2 h-full rounded-sm overflow-hidden bg-muted">
-                  <img 
-                    src={thumbnail.urls[0]} 
-                    alt={title || "Gallery image 1"} 
-                    className="w-full h-full object-cover" 
+                  <img
+                    src={thumbnail.urls[0]}
+                    alt={title || "Gallery image 1"}
+                    className="w-full h-full object-cover"
                   />
                 </div>
                 {thumbnail.urls.length > 1 && (
                   <div className="flex-1 flex flex-col gap-1">
                     <div className="flex-1 rounded-sm overflow-hidden bg-muted">
-                      <img 
-                        src={thumbnail.urls[1]} 
-                        alt={title || "Gallery image 2"} 
-                        className="w-full h-full object-cover" 
+                      <img
+                        src={thumbnail.urls[1]}
+                        alt={title || "Gallery image 2"}
+                        className="w-full h-full object-cover"
                       />
                     </div>
                     {thumbnail.urls.length > 2 && (
                       <div className="flex-1 rounded-sm overflow-hidden bg-muted relative">
-                        <img 
-                          src={thumbnail.urls[2]} 
-                          alt={title || "Gallery image 3"} 
-                          className="w-full h-full object-cover" 
+                        <img
+                          src={thumbnail.urls[2]}
+                          alt={title || "Gallery image 3"}
+                          className="w-full h-full object-cover"
                         />
                         {thumbnail.urls.length > 3 && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -505,9 +507,9 @@ export const PostCard = (props: PostCardProps) => {
           <div className="flex items-start gap-3.5">
             <div className="relative shrink-0">
               {authorId ? (
-                <Link 
-                  href={`/profile/${authorId}`} 
-                  className="shrink-0 block" 
+                <Link
+                  href={`/profile/${authorId}`}
+                  className="shrink-0 block"
                   onClick={(e) => e.stopPropagation()}
                   aria-label={`View ${authorName}'s profile`}
                 >
@@ -527,12 +529,12 @@ export const PostCard = (props: PostCardProps) => {
                 </Avatar>
               )}
             </div>
-            
+
             <div className="flex-1 min-w-0 pt-0.5">
               <div className="flex items-center gap-2">
                 {authorId ? (
-                  <Link 
-                    href={`/profile/${authorId}`} 
+                  <Link
+                    href={`/profile/${authorId}`}
                     onClick={(e) => e.stopPropagation()}
                     className="hover:underline"
                   >
@@ -542,10 +544,10 @@ export const PostCard = (props: PostCardProps) => {
                   <p className="font-semibold text-sm tracking-tight">{authorName}</p>
                 )}
                 <ArrowUpRight className="h-3 w-3 text-muted-foreground/40" aria-hidden="true" />
-                
+
                 {status && status !== "approved" && (
-                  <Badge 
-                    variant={status === "pending" ? "outline" : "destructive"} 
+                  <Badge
+                    variant={status === "pending" ? "outline" : "destructive"}
                     className="text-xs px-1.5 h-4 capitalize ml-1"
                   >
                     {status}
@@ -576,14 +578,14 @@ export const PostCard = (props: PostCardProps) => {
                 {displayTime}
               </span>
             )}
-            
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 rounded-full text-muted-foreground/40 hover:text-foreground transition-all duration-300" 
-              onClick={(e) => { 
-                e.preventDefault(); 
-                e.stopPropagation(); 
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full text-muted-foreground/40 hover:text-foreground transition-all duration-300"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
               }}
               aria-label="More options"
             >
@@ -617,19 +619,19 @@ export const PostCard = (props: PostCardProps) => {
                 aria-label={liked ? "Unlike post" : "Like post"}
                 aria-pressed={liked}
               >
-                <Heart 
+                <Heart
                   className={cn(
                     "h-[16px] w-[16px] transition-all duration-300",
                     liked && "fill-destructive scale-110"
-                  )} 
+                  )}
                 />
                 <span className="text-[12px] font-medium tabular-nums">
                   {likeCountState}
                 </span>
               </button>
 
-              <Link 
-                href={url ? `/blog/${url}#comments` : "#"} 
+              <Link
+                href={url ? `/blog/${url}#comments` : "#"}
                 className="px-2 flex items-center gap-1.5 text-muted-foreground/60 hover:text-foreground transition-colors duration-300"
                 onClick={(e) => e.stopPropagation()}
                 aria-label={`View ${commentCount} comments`}
@@ -638,7 +640,7 @@ export const PostCard = (props: PostCardProps) => {
                 <span className="text-[12px] font-medium tabular-nums">{commentCount}</span>
               </Link>
 
-              <button 
+              <button
                 className="px-2 text-muted-foreground/60 hover:text-foreground transition-colors duration-300"
                 onClick={handleShare}
                 aria-label="Share post"
@@ -656,11 +658,11 @@ export const PostCard = (props: PostCardProps) => {
               aria-label={isBookmarked ? "Remove bookmark" : "Bookmark post"}
               aria-pressed={isBookmarked}
             >
-              <Bookmark 
+              <Bookmark
                 className={cn(
-                  "h-[16px] w-[16px] transition-all duration-300", 
+                  "h-[16px] w-[16px] transition-all duration-300",
                   isBookmarked && "fill-primary"
-                )} 
+                )}
               />
             </button>
           </div>

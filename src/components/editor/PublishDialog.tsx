@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+import { isSafeUrl, extractYoutubeId, buildYoutubeEmbedUrl } from "@/lib/videoUtils";
 import {
   Image as ImageIcon,
   Layers,
@@ -86,67 +86,6 @@ interface FieldError {
   url?: string;
   urls?: Record<number, string>;
   videoUrl?: string;
-}
-
-// ─── Security Utilities ───────────────────────────────────────────────────────
-
-/**
- * Validates that a URL is safe to use (HTTPS only, no javascript:, data:, etc.)
- */
-function isSafeUrl(url: string): boolean {
-  if (!url || url.trim() === "") return false;
-  if (url.length > MAX_URL_LENGTH) return false;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Validates a YouTube URL and returns the video ID if valid.
- */
-function extractYoutubeId(url: string): string | null {
-  if (!url || !isSafeUrl(url)) return null;
-  try {
-    const parsed = new URL(url);
-    const isYoutube =
-      parsed.hostname === "www.youtube.com" ||
-      parsed.hostname === "youtube.com" ||
-      parsed.hostname === "youtu.be";
-    if (!isYoutube) return null;
-
-    let videoId: string | null = null;
-    if (parsed.hostname === "youtu.be") {
-      videoId = parsed.pathname.slice(1);
-    } else {
-      videoId = parsed.searchParams.get("v");
-    }
-    // YouTube IDs are exactly 11 alphanumeric chars (+ - _)
-    if (videoId && /^[\w-]{11}$/.test(videoId)) return videoId;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Builds a safe YouTube embed URL from a video ID.
- * Uses youtube-nocookie.com for enhanced privacy.
- */
-function buildYoutubeEmbedUrl(videoId: string, loop: boolean): string {
-  const params = new URLSearchParams({
-    autoplay: "1",
-    mute: "1",
-    loop: loop ? "1" : "0",
-    playlist: videoId, // required for loop to work
-    rel: "0",
-    modestbranding: "1",
-    enablejsapi: "0",
-  });
-  // youtube-nocookie.com is YouTube's privacy-enhanced embed domain
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
 
 /**
@@ -224,8 +163,6 @@ function hasErrors(errors: FieldError): boolean {
     (!!errors.urls && Object.keys(errors.urls).length > 0)
   );
 }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function CharCount({
   value,
@@ -355,7 +292,7 @@ function PreviewCard({
   loop,
 }: PreviewCardProps) {
   const videoId = extractYoutubeId(videoUrl);
-  const embedUrl = videoId ? buildYoutubeEmbedUrl(videoId, loop) : null;
+  const embedUrl = videoId ? buildYoutubeEmbedUrl(videoId, { loop }) : null;
   const validMultiUrls = multiUrls.filter((u) => isSafeUrl(u)).slice(0, 3);
   const isSingleValid = isSafeUrl(singleUrl);
 
