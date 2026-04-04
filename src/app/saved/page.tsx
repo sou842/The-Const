@@ -13,7 +13,7 @@ export default function Saved() {
 
   return (
     <AppLayout>
-      <div className="pb-20 md:pb-4 max-w-2xl mx-auto">
+      <div className="pb-20 md:pb-4 max-w-3xl mx-auto">
         <div className="flex items-center gap-2 mb-6 px-2">
           <Bookmark className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Saved Posts</h1>

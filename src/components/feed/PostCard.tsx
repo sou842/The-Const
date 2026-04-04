@@ -178,7 +178,7 @@ export const PostCard = (props: PostCardProps) => {
             </Avatar>
           )}
           {/* Status dot - showing as online for demo if it's an author post */}
-          <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-online border-2 border-card" />
+          {/* <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-online border-2 border-card" /> */}
         </div>
         
         <div className="flex-1 min-w-0">

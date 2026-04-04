@@ -25,7 +25,7 @@ const RightSidebar = () => {
   const suggestedUsers = networkData?.suggestions || [];
 
   return (
-    <aside className="hidden md:flex fixed right-0 top-14 bottom-0 w-80 bg-card border-r flex-col py-4 z-40 p-4 overflow-y-auto">
+    <aside className="hidden md:flex fixed right-0 top-14 bottom-0 w-80 bg-card border-l flex-col py-4 z-40 p-4 overflow-y-auto">
       <div className="mb-6">
         <h3 className="font-display font-semibold text-sm mb-3">Trending Topics</h3>
         <div className="space-y-2.5">
