@@ -57,7 +57,7 @@ export function ThumbnailGallery({ thumbnail, title }: ThumbnailGalleryProps) {
         {/* 1. Multiple Images (Gallery) */}
         {thumbnail.type === "multiple-images" && thumbnail.urls && thumbnail.urls.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-1 p-1 h-84 md:h-[420px]">
-            {thumbnail?.urls?.slice(0, 3)?.map((url, i, arr) => (
+            {thumbnail.urls.slice(0, 3).map((url, i, arr) => (
               <div
                 key={i}
                 onClick={() => openLightbox(i)}
@@ -79,6 +79,12 @@ export function ThumbnailGallery({ thumbnail, title }: ThumbnailGalleryProps) {
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
                   <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-all duration-300 scale-75 group-hover:scale-100 h-8 w-8 drop-shadow-md" />
                 </div>
+
+                {i === 2 && thumbnail.urls && thumbnail.urls.length > 3 && (
+                  <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center text-white text-lg font-bold">
+                    +{thumbnail.urls.length - 3}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -92,7 +98,7 @@ export function ThumbnailGallery({ thumbnail, title }: ThumbnailGalleryProps) {
                 return (
                   <iframe
                     className="w-full h-full"
-                    src={buildYoutubeEmbedUrl(videoId)}
+                    src={buildYoutubeEmbedUrl(videoId, { loop: !!thumbnail.loop })}
                     title={title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen

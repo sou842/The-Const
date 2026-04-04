@@ -19,7 +19,7 @@ void Like;
 void Comment;
 
 // ISR Configuration: Revalidate every hour
-export const revalidate = 60 * 60;
+export const revalidate = 3600;
 
 // Allow other dynamic URLs to be generated on-demand
 export const dynamicParams = true;
@@ -144,11 +144,28 @@ export async function generateMetadata({ params }: Props) {
   const { url } = await params;
   const blog = await getBlog(url);
   if (!blog) return { title: "Blog Not Found" };
+
+  // Determine the best share image
+  let shareImage = blog.thumbnail?.url || blog.thumbnail?.image || blog.image;
+  if (blog.thumbnail?.type === "multiple-images" && blog.thumbnail.urls?.length) {
+    shareImage = blog.thumbnail.urls[0];
+  }
+
   return {
     title: `${blog.title} — The Const`,
     description: blog.thumbnail?.description || blog.title,
     openGraph: {
-      images: blog.thumbnail?.image ? [blog.thumbnail.image] : [],
+      title: blog.title,
+      description: blog.thumbnail?.description || blog.title,
+      type: "article",
+      url: `https://theconst.com/blog/${url}`,
+      images: shareImage ? [{ url: shareImage }] : [],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: blog.title,
+      description: blog.thumbnail?.description || blog.title,
+      images: shareImage ? [shareImage] : [],
     },
   };
 }

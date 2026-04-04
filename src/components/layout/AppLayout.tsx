@@ -6,9 +6,10 @@ import { PublicPanel } from "@/components/RightSidebar";
 interface AppLayoutProps {
   children: ReactNode;
   layout?: 'default' | 'full' | 'editor';
+  shadow?: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'outline';
 }
 
-export const AppLayout = ({ children, layout = 'default' }: AppLayoutProps) => {
+export const AppLayout = ({ children, layout = 'default', shadow }: AppLayoutProps) => {
 
   switch (layout) {
     case 'full':
