@@ -12,13 +12,14 @@ import { Comment } from "@/models/Comment";
 import { getSession } from "@/lib/auth";
 import mongoose from "mongoose";
 import { cache } from "react";
+import { ThumbnailGallery } from "@/components/blog/ThumbnailGallery";
 
 // Register models
 void Like;
 void Comment;
 
 // ISR Configuration: Revalidate every hour
-export const revalidate = 3600;
+export const revalidate = 60 * 60;
 
 // Allow other dynamic URLs to be generated on-demand
 export const dynamicParams = true;
@@ -80,29 +81,15 @@ export default async function BlogReadPage({ params }: Props) {
   if (!blog) notFound();
 
   return (
-    <AppLayout>
-      <div className="pb-20 md:pb-8 animate-fade-in">
-        {/* Back */}
-        {/* <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Feed
-        </Link> */}
-
-        {/* Cover Image */}
-        {/* {blog.thumbnail?.image && (
-          <div className="rounded-xl overflow-hidden border mb-6 h-64 md:h-80">
-            <img
-              src={blog.thumbnail.image}
-              alt={blog.title}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )} */}
+    <AppLayout shadow="none">
+      <div className="pb-20 md:pb-8 animate-fade-in max-w-4xl mx-auto px-4">
+        {/* Thumbnails (Image, Gallery, or Video with Lightbox) */}
+        <ThumbnailGallery thumbnail={blog.thumbnail || { type: 'image', image: blog.image }} title={blog.title} />
 
         {/* Title */}
-        {/* <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight mb-4">
+        <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight leading-tight mb-8 text-foreground">
           {blog.title}
-        </h1> */}
+        </h1>
 
         {/* Author & Meta */}
         {/* <div className="flex items-center justify-between mb-6 pb-6 border-b">
