@@ -24,7 +24,7 @@ export const AppLayout = ({ children, layout = 'default' }: AppLayoutProps) => {
                 {children}
               </div>
             </main>
-            <RightSidebar />
+            {/* <RightSidebar /> */}
           </div>
         </div>
       );
@@ -34,7 +34,7 @@ export const AppLayout = ({ children, layout = 'default' }: AppLayoutProps) => {
           <TopBar />
           <div className="flex">
             <Sidebar />
-            <main className={`w-full flex-1 flex justify-center ml-0 md:ml-64 mt-14 min-h-[calc(100vh-3.5rem)]`}>
+            <main className={`w-full flex-1 flex justify-center ml-0 md:ml-64 mt-14 xl:mr-80 min-h-[calc(100vh-3.5rem)] overflow-y-auto`}>
               <div className={'w-full max-w-4xl p-4 md:p-6'}>
                 {children}
               </div>

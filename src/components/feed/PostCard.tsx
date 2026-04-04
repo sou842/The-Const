@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaved } from "@/contexts/SavedContext";
 import { toast } from "sonner";
+import type { BlogPost } from "@/types/blog";
 
 interface PostCardProps {
   _id?: string;
@@ -114,7 +115,7 @@ export const PostCard = (props: PostCardProps) => {
     e.stopPropagation();
     if (_id) {
         // Pass the whole post object for IDB storage
-        await toggleSave(props as any);
+        await toggleSave(props as unknown as BlogPost);
     }
   };
 
@@ -158,138 +159,135 @@ export const PostCard = (props: PostCardProps) => {
   return (
     <article 
       onClick={handleCardClick}
-      className="bg-card rounded-xl border p-4 animate-fade-in hover:shadow-md transition-all cursor-pointer group"
+      className="bg-card rounded-2xl border p-5 transition-all duration-300 animate-fade-in hover:shadow-[0_8px_30px_-12px_hsl(var(--foreground)/0.08)] hover:border-foreground/10 group cursor-pointer mb-6"
     >
-      <div className="flex items-start gap-3">
-        {authorId ? (
-          <Link href={`/profile/${authorId}`} className="hidden sm:block shrink-0 z-10" onClick={(e) => e.stopPropagation()}>
-            <Avatar className="h-10 w-10">
+      {/* Author header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative">
+          {authorId ? (
+            <Link href={`/profile/${authorId}`} className="shrink-0 z-10" onClick={(e) => e.stopPropagation()}>
+              <Avatar className="h-11 w-11 ring-2 ring-border">
+                <AvatarImage src={authorAvatar} />
+                <AvatarFallback className="text-xs font-semibold">{authorInitials}</AvatarFallback>
+              </Avatar>
+            </Link>
+          ) : (
+            <Avatar className="h-11 w-11 ring-2 ring-border">
               <AvatarImage src={authorAvatar} />
-              <AvatarFallback>{authorInitials}</AvatarFallback>
+              <AvatarFallback className="text-xs font-semibold">{authorInitials}</AvatarFallback>
             </Avatar>
-          </Link>
-        ) : (
-          <Avatar className="hidden sm:block h-10 w-10 shrink-0">
-            <AvatarImage src={authorAvatar} />
-            <AvatarFallback>{authorInitials}</AvatarFallback>
-          </Avatar>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {authorId ? (
-                <Link href={`/profile/${authorId}`} className="block sm:hidden shrink-0 z-10" onClick={(e) => e.stopPropagation()}>
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={authorAvatar} />
-                    <AvatarFallback>{authorInitials}</AvatarFallback>
-                  </Avatar>
-                </Link>
-              ) : (
-                <Avatar className="block sm:hidden h-10 w-10 shrink-0">
-                  <AvatarImage src={authorAvatar} />
-                  <AvatarFallback>{authorInitials}</AvatarFallback>
-                </Avatar>
-              )}
-              {authorId ? (
-                <Link href={`/profile/${authorId}`} className="hover:underline z-10" onClick={(e) => e.stopPropagation()}>
-                  <div>
-                    <p className="font-semibold text-sm">{authorName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {authorTitle ? `${authorTitle} · ` : ""}{displayTime}
-                    </p>
-                  </div>
-                </Link>
-              ) : (
-                <div>
-                  <p className="font-semibold text-sm">{authorName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {authorTitle ? `${authorTitle} · ` : ""}{displayTime}
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              {status && status !== "approved" && (
-                <Badge variant={status === "pending" ? "outline" : "destructive"} className="text-[10px] px-1.5 h-5 capitalize">
-                  {status}
-                </Badge>
-              )}
-              {status === "pending" && onStatusUpdate && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 text-[10px] px-2 bg-primary/10 text-primary hover:bg-primary/20 border-none z-10"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onStatusUpdate("approved");
-                  }}
-                >
-                  Approve
-                </Button>
-              )}
-              {category && <Badge variant="outline" className="text-xs hidden sm:flex">{category}</Badge>}
-              <Button variant="ghost" size="icon" className="h-8 w-8 z-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-
-          {title && (
-            <p className="mt-3 text-base font-semibold line-clamp-3 group-hover:text-primary transition-colors">{title}</p>
           )}
-
-          {preview && (
-            <p className="mt-3 text-sm leading-relaxed line-clamp-3 text-muted-foreground">{preview}</p>
-          )}
-
-          {coverImage && (
-            <div className="mt-3 rounded-lg overflow-hidden border bg-muted/30">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={coverImage} alt={title || ""} className="w-full h-56 object-cover transform transition-transform group-hover:scale-105" />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mt-3 pt-3 border-t">
-            <div className="flex items-center gap-1 z-10">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn("h-8 gap-1.5 px-2 transition-colors hover:bg-muted/50", liked && "text-rose-500 hover:text-rose-600")}
-                onClick={handleLike}
-              >
-                <Heart className={cn("h-4 w-4 transition-all", liked && "fill-rose-500 scale-110")} />
-                <span className="text-xs font-medium">{likeCountState}</span>
-              </Button>
-
-              <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2 hover:bg-muted/50" asChild>
-                <Link href={url ? `/blog/${url}#comments` : "#"} onClick={(e) => e.stopPropagation()}>
-                  <MessageCircle className="h-4 w-4" />
-                  <span className="text-xs font-medium">{commentCount}</span>
-                </Link>
-              </Button>
-
-              <Button variant="ghost" size="sm" className="h-8 px-2 hover:bg-muted/50" onClick={handleShare}>
-                <Share2 className="h-4 w-4" />
-              </Button>
-
-              {views !== undefined && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground px-2">
-                  <Eye className="h-3.5 w-3.5" /> {views}
-                </span>
-              )}
-            </div>
-
-            <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn("h-8 px-2 z-10 hover:bg-muted/50", isBookmarked && "text-primary")} 
-                onClick={handleSave}
-            >
-              <Bookmark className={cn("h-4 w-4 transition-all", isBookmarked && "fill-primary scale-110")} />
-            </Button>
-          </div>
+          {/* Status dot - showing as online for demo if it's an author post */}
+          <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-online border-2 border-card" />
         </div>
+        
+        <div className="flex-1 min-w-0">
+          {authorId ? (
+            <Link href={`/profile/${authorId}`} className="hover:underline z-10" onClick={(e) => e.stopPropagation()}>
+              <p className="font-semibold text-sm leading-tight">{authorName}</p>
+            </Link>
+          ) : (
+            <p className="font-semibold text-sm leading-tight">{authorName}</p>
+          )}
+          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+            {authorTitle || "Member"}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {status && status !== "approved" && (
+            <Badge variant={status === "pending" ? "outline" : "destructive"} className="text-[10px] px-1.5 h-5 capitalize">
+              {status}
+            </Badge>
+          )}
+          {status === "pending" && onStatusUpdate && (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-7 text-[10px] px-2 bg-primary/10 text-primary hover:bg-primary/20 border-none z-10"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onStatusUpdate("approved");
+              }}
+            >
+              Approve
+            </Button>
+          )}
+          <p className="text-[10px] text-muted-foreground/60 font-medium">{displayTime}</p>
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground z-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="space-y-3">
+        {title && (
+          <p className="text-sm leading-relaxed text-foreground/90">{title}</p>
+        )}
+        {preview && (
+          <p className="text-sm leading-relaxed text-foreground/90 line-clamp-3">{preview}</p>
+        )}
+      </div>
+
+      {/* Image */}
+      {coverImage && (
+        <div className="mt-4 rounded-xl overflow-x-hidden overflow-y-hidden border bg-muted relative h-72">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src={coverImage} 
+            alt={title || ""} 
+            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500" 
+          />
+        </div>
+      )}
+
+      {/* Engagement bar */}
+      <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "h-9 gap-1.5 px-3 rounded-full text-muted-foreground transition-all z-10",
+              liked && "text-destructive bg-destructive/5 hover:bg-destructive/10 hover:text-destructive"
+            )}
+            onClick={handleLike}
+          >
+            <Heart className={cn("h-[18px] w-[18px] transition-transform", liked && "fill-destructive scale-110")} />
+            <span className="text-xs font-medium">{likeCountState}</span>
+          </Button>
+
+          <Button variant="ghost" size="sm" className="h-9 gap-1.5 px-3 rounded-full text-muted-foreground z-10" asChild>
+            <Link href={url ? `/blog/${url}#comments` : "#"} onClick={(e) => e.stopPropagation()}>
+              <MessageCircle className="h-[18px] w-[18px]" />
+              <span className="text-xs font-medium">{commentCount}</span>
+            </Link>
+          </Button>
+
+          <Button variant="ghost" size="sm" className="h-9 px-3 rounded-full text-muted-foreground z-10" onClick={handleShare}>
+            <Share2 className="h-[18px] w-[18px]" />
+          </Button>
+
+          {views !== undefined && (
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground/60 px-2 font-medium">
+              <Eye className="h-3.5 w-3.5" /> {views}
+            </span>
+          )}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-9 px-3 rounded-full text-muted-foreground transition-all z-10",
+            isBookmarked && "text-primary bg-primary/5 hover:bg-primary/10"
+          )}
+          onClick={handleSave}
+        >
+          <Bookmark className={cn("h-[18px] w-[18px] transition-transform", isBookmarked && "fill-primary scale-110")} />
+        </Button>
       </div>
     </article>
   );

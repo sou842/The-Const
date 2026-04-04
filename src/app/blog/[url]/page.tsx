@@ -117,16 +117,6 @@ export default async function BlogReadPage({ params }: Props) {
           </div>
         )}
 
-        {/* Category & Tags */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <Badge>{blog.category}</Badge>
-          {blog.tags?.map((tag: string) => (
-            <Badge key={tag} variant="outline">
-              #{tag}
-            </Badge>
-          ))}
-        </div>
-
         {/* Title */}
         <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight mb-4">
           {blog.title}

@@ -1,12 +1,12 @@
 "use client";
 
-import { Search, Bell, LogIn, LogOut, PenLine } from "lucide-react";
+import { Search, MessageCircle, Bell, PenSquare, LogIn, LogOut, User, Settings, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useNotifications } from "@/hooks/useNotifications";
 import {
@@ -36,20 +36,23 @@ export const TopBar = () => {
     .slice(0, 2) ?? "?";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b flex items-center px-4 md:px-6 gap-4">
-      <Link href="/" className="font-display text-2xl font-bold tracking-tight mr-4 shrink-0">
+    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-card/80 backdrop-blur-xl border-b border-border/50 flex items-center px-4 md:px-6 gap-3">
+      {/* Logo */}
+      <Link href="/" className="font-display text-2xl font-bold tracking-tight mr-2 shrink-0 hover:opacity-70 transition-opacity">
         The Const
       </Link>
 
-      <div className="relative flex-1 max-w-md hidden sm:block">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Search */}
+      <div className="relative flex-1 max-w-sm hidden sm:block">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
         <Input
-          placeholder="Search people, posts, topics..."
-          className="pl-9 bg-muted border-0 h-9"
+          placeholder="Search..."
+          className="pl-9 bg-muted/60 border-0 h-9 rounded-full text-sm placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-foreground/20 focus-visible:bg-muted"
         />
       </div>
 
-      <div className="ml-auto flex items-center gap-1">
+      {/* Actions */}
+      <div className="ml-auto flex items-center gap-0.5">
         {loading ? (
           <div className="flex items-center gap-3">
             <div className="hidden md:block h-8 w-20 bg-muted animate-pulse rounded-md" />
@@ -57,57 +60,89 @@ export const TopBar = () => {
           </div>
         ) : user ? (
           <>
-            <Button variant="ghost" size="sm" asChild className="gap-1.5 hidden md:flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex h-9 gap-2 rounded-full px-4 text-xs font-semibold hover:bg-foreground hover:text-primary-foreground transition-all"
+              asChild
+            >
               <Link href="/write">
-                <PenLine className="h-4 w-4" /> Write
+                <PenSquare className="h-4 w-4" />
+                Write
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" asChild className="relative">
+
+            <div className="h-5 w-px bg-border mx-1.5 hidden sm:block" />
+
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative" asChild>
+              <Link href="/messages">
+                <MessageCircle className="h-[18px] w-[18px]" />
+                {/* Assuming no unread count for messages for now as per Untitled-1 */}
+              </Link>
+            </Button>
+            
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative" asChild>
               <Link href="/notifications">
-                <Bell className="h-5 w-5" />
+                <Bell className="h-[18px] w-[18px]" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 translate-x-1/2 -translate-y-1/2 bg-destructive text-destructive-foreground text-[10px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center shadow-sm">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-card" />
                 )}
               </Link>
             </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Avatar className="h-8 w-8 ml-2 cursor-pointer">
-                  <AvatarImage src={user.profilePhoto} />
-                  <AvatarFallback>{initials}</AvatarFallback>
-                </Avatar>
+                <div className="ml-1.5">
+                  <Avatar className="h-8 w-8 cursor-pointer ring-2 ring-border hover:ring-foreground/30 transition-all">
+                    <AvatarImage src={user.profilePhoto} />
+                    <AvatarFallback className="text-[10px] font-semibold">{initials}</AvatarFallback>
+                  </Avatar>
+                </div>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
+              <DropdownMenuContent align="end" className="w-56 mt-2">
+                <div className="flex items-center gap-3 px-3 py-3 border-b bg-muted/20">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.profilePhoto} />
+                    <AvatarFallback>{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                    <p className="text-sm font-semibold truncate">{user.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                </div>
+                <div className="p-1">
+                  <DropdownMenuItem asChild className="rounded-md">
+                    <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <User className="h-4 w-4" /> Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-md">
+                    <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="h-4 w-4" /> Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  {user.role === "admin" && (
+                    <DropdownMenuItem asChild className="rounded-md">
+                      <Link href="/admin" className="flex items-center gap-2 cursor-pointer">
+                        <ShieldCheck className="h-4 w-4" /> Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile">Profile</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings">Settings</Link>
-                </DropdownMenuItem>
-                {user.role === "admin" && (
-                  <DropdownMenuItem asChild>
-                    <Link href="/admin">Admin Panel</Link>
+                <div className="p-1">
+                  <DropdownMenuItem
+                    className="text-destructive gap-2 rounded-md cursor-pointer"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-4 w-4" /> Log out
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive gap-2"
-                  onClick={handleLogout}
-                >
-                  <LogOut className="h-4 w-4" /> Log out
-                </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </>
         ) : (
-          <Button size="sm" asChild className="gap-2">
+          <Button size="sm" asChild className="gap-2 rounded-full px-5">
             <Link href="/login">
               <LogIn className="h-4 w-4" /> Log In
             </Link>

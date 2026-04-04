@@ -25,7 +25,7 @@ const RightSidebar = () => {
   const suggestedUsers = networkData?.suggestions || [];
 
   return (
-    <aside className="pt-18 hidden xl:block w-80 border-l bg-card p-4 overflow-y-auto">
+    <aside className="hidden md:flex fixed right-0 top-14 bottom-0 w-80 bg-card border-r flex-col py-4 z-40 p-4 overflow-y-auto">
       <div className="mb-6">
         <h3 className="font-display font-semibold text-sm mb-3">Trending Topics</h3>
         <div className="space-y-2.5">
@@ -89,15 +89,15 @@ const RightSidebar = () => {
             <p className="text-sm text-muted-foreground">No suggestions available</p>
           )}
         </div>
+      </div>
 
-        <div className="mt-6 pt-4 border-t">
-          <p className="text-xs text-muted-foreground">
-            Have a story to share?{" "}
-            <Link href="/write" className="text-primary font-medium hover:underline">
-              Write a blog
-            </Link>
-          </p>
-        </div>
+      <div className="mt-auto pt-4 border-t">
+        <p className="text-xs text-muted-foreground">
+          Have a story to share?{" "}
+          <Link href="/write" className="text-primary font-medium hover:underline">
+            Write a blog
+          </Link>
+        </p>
       </div>
     </aside>
   );

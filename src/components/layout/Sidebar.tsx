@@ -33,8 +33,8 @@ export const Sidebar = () => {
   ];
 
   return (
-    <aside className="hidden md:flex fixed left-0 top-14 bottom-0 w-64 bg-card border-r flex-col py-4 z-40">
-      <nav className="flex flex-col gap-0.5 px-3">
+    <aside className="hidden md:flex fixed left-0 top-14 bottom-0 w-64 bg-card border-r flex-col px-3 py-4 z-40">
+      <nav className="flex flex-col gap-0.5">
         {navItems?.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -60,11 +60,8 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      <div className="mt-auto px-3 pb-2">
-        <div className="border-t pt-4 px-3">
-          <p className="text-xs text-muted-foreground">© 2026 The Const</p>
-          <p className="text-xs text-muted-foreground mt-1">Connect. Share. Grow.</p>
-        </div>
+      <div className="mt-auto pt-4 border-t">
+        <p className="text-xs text-muted-foreground">© 2026 The Const</p>
       </div>
     </aside>
   );
