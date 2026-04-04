@@ -101,13 +101,13 @@ export default async function BlogReadPage({ params }: Props) {
     <AppLayout>
       <div className="pb-20 md:pb-8 animate-fade-in">
         {/* Back */}
-        <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
+        {/* <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Back to Feed
-        </Link>
+        </Link> */}
 
         {/* Cover Image */}
-        {blog.thumbnail?.image && (
+        {/* {blog.thumbnail?.image && (
           <div className="rounded-xl overflow-hidden border mb-6 h-64 md:h-80">
             <img
               src={blog.thumbnail.image}
@@ -115,15 +115,15 @@ export default async function BlogReadPage({ params }: Props) {
               className="w-full h-full object-cover"
             />
           </div>
-        )}
+        )} */}
 
         {/* Title */}
-        <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight mb-4">
+        {/* <h1 className="font-display text-3xl md:text-4xl font-bold leading-tight mb-4">
           {blog.title}
-        </h1>
+        </h1> */}
 
         {/* Author & Meta */}
-        <div className="flex items-center justify-between mb-6 pb-6 border-b">
+        {/* <div className="flex items-center justify-between mb-6 pb-6 border-b">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
               <AvatarImage src={
@@ -149,12 +149,12 @@ export default async function BlogReadPage({ params }: Props) {
               <Eye className="h-3.5 w-3.5" /> {blog.views ?? 0}
             </span>
           </div>
-        </div>
+        </div> */}
 
         {/* Blog Content */}
         <article className="mb-8">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <EditorJsRenderer blocks={(blog.body as unknown as any[]) || []} />
+          {blog.body && blog?.body?.map((block: any, index: number) => <EditorJsRenderer key={index} block={(block as unknown as any[]) || []} />)}
         </article>
 
         {/* Engagement Footer & Comments */}
