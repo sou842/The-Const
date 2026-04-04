@@ -17,6 +17,43 @@ const ReactPlayer = dynamic(() => import("react-player").then(mod => mod.default
   ),
 }) as ComponentType<ReactPlayerProps>;
 
+/**
+ * Builds a safe YouTube embed URL from a video ID.
+ * Uses youtube-nocookie.com for enhanced privacy.
+ */
+function buildYoutubeEmbedUrl(videoId: string, options: { loop?: boolean; autoplay?: boolean; mute?: boolean } = {}): string {
+  const { loop = false, autoplay = false, mute = false } = options;
+  const params = new URLSearchParams({
+    rel: "0",
+    modestbranding: "1",
+    enablejsapi: "0",
+  });
+
+  if (autoplay) params.set("autoplay", "1");
+  if (mute) params.set("mute", "1");
+  if (loop) {
+    params.set("loop", "1");
+    params.set("playlist", videoId); // required for loop to work
+  }
+
+  // youtube-nocookie.com is YouTube's privacy-enhanced embed domain
+  return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+}
+
+/**
+ * Sanitizes text to prevent XSS when used in HTML contexts.
+ * For React this is largely handled by JSX, but good for attrs.
+ */
+function sanitizeText(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+
 
 const DynamicCodeBlock = dynamic(() => import("@/components/common/DynamicCodeBlock"), {
   ssr: false,
@@ -31,9 +68,9 @@ const FallbackImageInline = ({ src, alt, className, priority }: { src: string; a
   const [imgSrc, setImgSrc] = useState(src);
   useEffect(() => { setImgSrc(src); }, [src]);
   return (
-    <Image 
-      src={imgSrc} 
-      alt={alt} 
+    <Image
+      src={imgSrc}
+      alt={alt}
       width={1200}
       height={675}
       sizes="(max-width: 1200px) 100vw, 1200px"
@@ -126,6 +163,20 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
     }
   };
 
+  // const getYoutubeEmbedUrl = (url?: string) => {
+  //   if (!url) return null;
+  //   try {
+  //     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  //     const match = url.match(regExp);
+  //     if (match && match[2].length === 11) {
+  //       return `https://www.youtube.com/embed/${match[2]}?autoplay=1&mute=1&loop=${thumbnail?.loop ? 1 : 0}&playlist=${match[2]}`;
+  //     }
+  //     return null;
+  //   } catch {
+  //     return null;
+  //   }
+  // };
+
   try {
     return (
       <Fragment>
@@ -150,10 +201,10 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
               );
             case "image":
             case "inlineImage": {
-              const imageUrl = blockType === "image" 
+              const imageUrl = blockType === "image"
                 ? safelyAccessData(block, "data.file.url", "")
                 : safelyAccessData(block, "data.url", "");
-                
+
               if (!imageUrl) {
                 return null;
               }
@@ -164,17 +215,15 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
 
               return (
                 <figure
-                  className={`w-full my-10 flex flex-col gap-3 items-center ${
-                    withBackground ? "bg-muted p-4 md:p-8 rounded-sm" : ""
-                  }`}
+                  className={`w-full my-10 flex flex-col gap-3 items-center ${withBackground ? "bg-muted p-4 md:p-8 rounded-sm" : ""
+                    }`}
                   itemProp="image"
                   itemScope
                   itemType="https://schema.org/ImageObject"
                 >
                   <FallbackImageInline
-                    className={`w-full h-auto object-cover ${
-                      !stretched && !withBackground ? "rounded-sm" : ""
-                    } ${withBorder ? "border border-border p-1" : ""}`}
+                    className={`w-full h-auto object-cover ${!stretched && !withBackground ? "rounded-sm" : ""
+                      } ${withBorder ? "border border-border p-1" : ""}`}
                     priority={isFirst}
                     src={imageUrl}
                     alt={safelyAccessData(block, "data.caption", "Article image")}
@@ -198,10 +247,13 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
                 return null;
               }
 
+
               let videoId = "";
+              let embedUrl = null;
               try {
                 const url = new URL(youtubeUrl);
                 videoId = url.searchParams.get("v") || "";
+                embedUrl = videoId ? buildYoutubeEmbedUrl(videoId, { loop: false, autoplay: false, mute: false }) : null;
               } catch (e) {
                 // Invalid URL
               }
@@ -214,22 +266,24 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
                   itemType="https://schema.org/VideoObject"
                 >
                   <meta itemProp="embedUrl" content={youtubeUrl} />
-                  {videoId && (
-                    <meta
-                      itemProp="thumbnailUrl"
-                      content={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
-                    />
+                  {embedUrl && (
+                    <>
+                      <meta
+                        itemProp="thumbnailUrl"
+                        content={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
+                      />
+                      <div className="w-full aspect-video rounded-sm overflow-hidden border border-border shadow-sm">
+                        <iframe
+                          className="w-full h-full"
+                          src={embedUrl || ''}
+                          title={`YouTube video player`}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          referrerPolicy="strict-origin-when-cross-origin"
+                        />
+                      </div>
+                    </>
                   )}
-                  <div className="w-full aspect-video rounded-sm overflow-hidden border border-border shadow-sm">
-                    <ReactPlayer
-                      width="100%"
-                      height="100%"
-                      url={youtubeUrl}
-                      controls={true}
-                      aria-label="YouTube video"
-                      onError={() => {}}
-                    />
-                  </div>
                 </div>
               );
             }
@@ -241,8 +295,8 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
 
               const listStyle = safelyAccessData(block, "data.style", "unordered");
               const ContainerTag = listStyle === "ordered" ? "ol" : "ul";
-              const listClass = listStyle === "ordered" 
-                ? "list-decimal list-outside pl-6 space-y-3" 
+              const listClass = listStyle === "ordered"
+                ? "list-decimal list-outside pl-6 space-y-3"
                 : "list-none space-y-3 pl-2";
 
               return (
@@ -268,7 +322,7 @@ export const EditorJsRenderer: FC<{ block: EditorBlock; isFirst?: boolean }> = (
             case "raw": {
               const codeProp = blockType === "code" ? "data.code" : "data.html";
               const defaultLang = blockType === "code" ? "jsx" : "html";
-              
+
               return (
                 <div
                   className="w-full my-8 text-sm md:text-base font-mono rounded-sm overflow-hidden border border-border shadow-sm"

@@ -16,7 +16,15 @@ interface PostCardProps {
   author: string | { _id?: string; name: string; avatar?: string; title?: string; initials?: string };
   content?: string;
   body?: any[];
-  thumbnail?: { image?: string; title?: string; description?: string };
+  thumbnail?: { 
+    type?: 'image' | 'multiple-images' | 'video';
+    image?: string; 
+    title?: string; 
+    description?: string;
+    url?: string;
+    urls?: string[];
+    loop?: boolean;
+  };
   image?: string;
   time?: string;
   createdAt?: string | Date;
@@ -82,8 +90,8 @@ export const PostCard = (props: PostCardProps) => {
 
   // Sync with props
   useEffect(() => {
-    setLiked(isLikedByUser);
-    setLikeCountState(likeCount);
+    if (isLikedByUser !== liked) setLiked(isLikedByUser);
+    if (likeCount !== likeCountState) setLikeCountState(likeCount);
     intendedLikeState.current = isLikedByUser;
   }, [isLikedByUser, likeCount]);
 
@@ -360,7 +368,25 @@ export const PostCard = (props: PostCardProps) => {
   }, [content, body]);
 
   const preview = getBodyPreview();
-  const coverImage = thumbnail?.image || image;
+  
+  const isVideo = thumbnail?.type === 'video';
+  const isGallery = thumbnail?.type === 'multiple-images';
+  const hasMedia = !!(thumbnail?.image || image || thumbnail?.url || (thumbnail?.urls && thumbnail.urls.length > 0));
+
+  const getYoutubeEmbedUrl = (url?: string) => {
+    if (!url) return null;
+    try {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}?autoplay=1&mute=1&loop=${thumbnail?.loop ? 1 : 0}&playlist=${match[2]}`;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   const displayTime = time ?? (createdAt
     ? (() => {
         try {
@@ -388,29 +414,93 @@ export const PostCard = (props: PostCardProps) => {
       />
 
       <div className="relative bg-card border border-border/50 rounded-[20px] overflow-hidden transition-all duration-500 group-hover:border-foreground/15 group-hover:shadow-[0_20px_60px_-20px_hsl(var(--foreground)/0.1)]">
-        {/* Image — full bleed with overlay gradient */}
-        {coverImage && (
-          <div className="relative h-64 overflow-hidden">
-            <img
-              src={coverImage}
-              alt={title || "Blog post cover image"}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-              loading="lazy"
-              onError={(e) => {
-                // Hide image on error
-                e.currentTarget.style.display = "none";
-              }}
-            />
-            {/* Floating time badge on image */}
+        {/* Media Block — handles image, gallery, and video */}
+        {hasMedia && (
+          <div className={cn(
+            "relative overflow-hidden bg-muted transition-all duration-500",
+            isVideo ? "aspect-video" : "h-64"
+          )}>
+            {isVideo && getYoutubeEmbedUrl(thumbnail?.url) ? (
+              <div className="w-full h-full relative pointer-events-none">
+                <iframe
+                  className="w-full h-full scale-[1.01]"
+                  src={getYoutubeEmbedUrl(thumbnail?.url) || ""}
+                  allow="autoplay; encrypted-media"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 z-10 bg-transparent" />
+              </div>
+            ) : isGallery && thumbnail?.urls && thumbnail.urls.length > 0 ? (
+              <div className="w-full h-full flex gap-1 p-0.5">
+                <div className="flex-2 h-full rounded-sm overflow-hidden bg-muted">
+                  <img 
+                    src={thumbnail.urls[0]} 
+                    alt={title || "Gallery image 1"} 
+                    className="w-full h-full object-cover" 
+                  />
+                </div>
+                {thumbnail.urls.length > 1 && (
+                  <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-1 rounded-sm overflow-hidden bg-muted">
+                      <img 
+                        src={thumbnail.urls[1]} 
+                        alt={title || "Gallery image 2"} 
+                        className="w-full h-full object-cover" 
+                      />
+                    </div>
+                    {thumbnail.urls.length > 2 && (
+                      <div className="flex-1 rounded-sm overflow-hidden bg-muted relative">
+                        <img 
+                          src={thumbnail.urls[2]} 
+                          alt={title || "Gallery image 3"} 
+                          className="w-full h-full object-cover" 
+                        />
+                        {thumbnail.urls.length > 3 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">+{thumbnail.urls.length - 2}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <img
+                src={thumbnail?.image || image || thumbnail?.url}
+                alt={title || "Blog post cover"}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                loading="lazy"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            )}
+
+            {/* Media Badges */}
+            <div className="absolute top-4 left-4 z-20 flex gap-2">
+              {isVideo && (
+                <Badge className="bg-primary/90 text-primary-foreground backdrop-blur-md border-none text-[10px] uppercase font-bold py-0.5 h-auto">
+                  Video
+                </Badge>
+              )}
+              {isGallery && (
+                <Badge className="bg-primary/90 text-primary-foreground backdrop-blur-md border-none text-[10px] uppercase font-bold py-0.5 h-auto">
+                  Gallery
+                </Badge>
+              )}
+            </div>
+
+            {/* Floating time badge */}
             {displayTime && (
-              <span className="absolute top-4 right-4 text-xs font-medium tracking-wider uppercase bg-card/80 backdrop-blur-md text-muted-foreground px-3 py-1.5 rounded-full border border-border/30">
+              <span className="absolute top-4 right-4 z-20 text-xs font-medium tracking-wider uppercase bg-card/80 backdrop-blur-md text-muted-foreground px-3 py-1.5 rounded-full border border-border/30">
                 {displayTime}
               </span>
             )}
           </div>
         )}
 
-        <div className={cn("px-6 pb-5", coverImage ? "pt-4 relative z-10" : "pt-6")}>
+        <div className={cn("px-6 pb-5", hasMedia ? "pt-4 relative z-10" : "pt-6")}>
           {/* Author row */}
           <div className="flex items-start gap-3.5">
             <div className="relative shrink-0">
@@ -481,7 +571,7 @@ export const PostCard = (props: PostCardProps) => {
               </p>
             </div>
 
-            {!coverImage && displayTime && (
+            {!hasMedia && displayTime && (
               <span className="text-xs text-muted-foreground/50 font-normal tracking-wider uppercase shrink-0 pt-2">
                 {displayTime}
               </span>

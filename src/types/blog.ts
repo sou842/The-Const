@@ -19,9 +19,13 @@ export interface BlogPost {
   content?: string;
   body?: EditorBlock[];
   thumbnail?: { 
+    type?: 'image' | 'multiple-images' | 'video';
     image?: string; 
     title?: string; 
-    description?: string 
+    description?: string;
+    url?: string;
+    urls?: string[];
+    loop?: boolean;
   };
   image?: string;
   time?: string;

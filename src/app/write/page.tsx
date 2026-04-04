@@ -11,13 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { PublishDialog, type PublishData } from "@/components/editor/PublishDialog";
 import { toast } from "sonner";
 import { PenLine, X, Loader2 } from "lucide-react";
 import type { BlogEditorHandle } from "@/components/editor/BlogEditor";
@@ -26,11 +20,9 @@ import type { BlogEditorHandle } from "@/components/editor/BlogEditor";
 const BlogEditor = dynamic(() => import("@/components/editor/BlogEditor"), { ssr: false });
 
 import { poster } from "@/lib/api";
+import { EditorPanel } from "@/components/RightSidebar";
 
-const CATEGORIES = [
-  "Technology", "Design", "Engineering", "Career", "Product",
-  "AI & ML", "Startup", "Science", "Finance", "Productivity",
-];
+import { CATEGORIES } from "@/lib/constants";
 
 export default function WritePage() {
   const { user } = useAuth();
@@ -41,7 +33,6 @@ export default function WritePage() {
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [publishing, setPublishing] = useState(false);
 
@@ -67,7 +58,7 @@ export default function WritePage() {
     setShowPublishDialog(true);
   };
 
-  const confirmPublish = async () => {
+  const confirmPublish = async (publishData: PublishData) => {
     setPublishing(true);
     try {
       const blocks = await editorRef.current?.save();
@@ -82,7 +73,8 @@ export default function WritePage() {
         category,
         tags,
         url: title.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
-        thumbnail: { image: thumbnailUrl, title: title.trim() },
+        thumbnail: publishData.thumbnail,
+        contentType: publishData.contentType,
         language: "en",
       });
 
@@ -90,7 +82,6 @@ export default function WritePage() {
       setShowPublishDialog(false);
       router.push("/");
     } catch (error) {
-      // Errors are already toasted by the poster utility
       console.error("Publish error:", error);
     } finally {
       setPublishing(false);
@@ -98,7 +89,7 @@ export default function WritePage() {
   };
 
   return (
-    <AppLayout>
+    <AppLayout layout="editor">
       <div className="pb-20 md:pb-8 min-h-screen">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -135,8 +126,8 @@ export default function WritePage() {
           <BlogEditor ref={editorRef} />
         </div>
 
-        {/* Category & Tags */}
-        <div className="bg-card rounded-xl border p-4 space-y-4">
+        {/* Category & Tags - Hidden on desktop as they are in the sidebar */}
+        <div className="bg-card rounded-xl border p-4 space-y-4 xl:hidden">
           <div className="space-y-2">
             <Label className="text-sm font-medium">Category *</Label>
             <div className="flex flex-wrap gap-2">
@@ -189,61 +180,23 @@ export default function WritePage() {
       </div>
       <MobileNav />
 
-      {/* Publish Dialog */}
-      <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Publish your blog</DialogTitle>
-            <DialogDescription>
-              Add a cover image URL before submitting. Your blog will be reviewed and published once approved.
-            </DialogDescription>
-          </DialogHeader>
+      <EditorPanel 
+        category={category}
+        setCategory={setCategory}
+        tags={tags}
+        addTag={addTag}
+        removeTag={removeTag}
+        tagInput={tagInput}
+        setTagInput={setTagInput}
+      />
 
-          <div className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <Label htmlFor="thumbnail">Cover Image URL (optional)</Label>
-              <Input
-                id="thumbnail"
-                value={thumbnailUrl}
-                onChange={(e) => setThumbnailUrl(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-              />
-              {thumbnailUrl && (
-                <img
-                  src={thumbnailUrl}
-                  alt="Preview"
-                  className="w-full h-40 object-cover rounded-lg border mt-2"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
-                />
-              )}
-            </div>
-
-            <div className="text-sm text-muted-foreground bg-muted rounded-lg p-3">
-              <p className="font-medium text-foreground mb-1">📋 Before you publish</p>
-              <ul className="space-y-1 text-xs">
-                <li>• Your blog is submitted as <strong>pending</strong> and needs admin approval.</li>
-                <li>• Once approved, it will appear live in the feed.</li>
-                <li>• Make sure your content follows community guidelines.</li>
-              </ul>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowPublishDialog(false)} disabled={publishing}>
-                Cancel
-              </Button>
-              <Button onClick={confirmPublish} disabled={publishing}>
-                {publishing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
-                  </>
-                ) : (
-                  "Submit for Review"
-                )}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <PublishDialog 
+        open={showPublishDialog}
+        onOpenChange={setShowPublishDialog}
+        publishing={publishing}
+        onConfirm={confirmPublish}
+        initialData={{ title }}
+      />
     </AppLayout>
   );
 }

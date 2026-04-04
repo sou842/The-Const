@@ -5,9 +5,13 @@ export interface IBlog extends Document {
     title: string;
     body: Record<string, unknown>;
     thumbnail: {
+        type: 'image' | 'multiple-images' | 'video';
         title?: string;
         description?: string;
-        image?: string;
+        image?: string; // fallback or legacy
+        url?: string; // used for image or video
+        urls?: string[]; // used for multiple-images
+        loop?: boolean; // used for video
     };
     category: string;
     tags: string[];
