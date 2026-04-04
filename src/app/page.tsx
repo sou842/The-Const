@@ -17,8 +17,6 @@ export default function Home() {
 
   const blogs: BlogPost[] = data?.blogs ?? [];
 
-  console.log(blogs, "tara blogs")
-
   return (
     <AppLayout>
       <div className="w-full flex flex-row">
