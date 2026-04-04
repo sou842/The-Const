@@ -70,7 +70,7 @@ export default function WritePage() {
       await poster("/api/blogs", {
         title: title.trim(),
         content: blocks,
-        category,
+        category: publishData.category,
         tags,
         url: title.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
         thumbnail: publishData.thumbnail,
@@ -107,23 +107,27 @@ export default function WritePage() {
         </div>
 
         {/* Author info */}
-        {user && (
+        {/* {user && (
           <p className="text-xs text-muted-foreground mb-4">
             Writing as <span className="font-semibold text-foreground">{user.name}</span>
           </p>
-        )}
+        )} */}
 
-        {/* Title */}
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Your blog title..."
-          className="text-2xl font-bold h-auto py-3 px-0 border-0 border-b rounded-none shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 mb-4"
-        />
+        <div className="bg-card rounded-xl border p-4 md:p-6">
+          {/* Title */}
+          <div className="w-full h-auto md:px-10 px-0">
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Your headline here…"
+              className="w-full text-4xl font-bold h-auto py-3 md:px-6 px-0 border-b rounded-none shadow-none focus-visible:ring-0 bg-transparent placeholder:text-muted-foreground/50 mb-6"
+            />
+          </div>
 
-        {/* Editor */}
-        <div className="bg-card rounded-xl border p-4 md:p-6 min-h-[500px] mb-4">
-          <BlogEditor ref={editorRef} />
+          {/* Editor */}
+          <div className="min-h-[500px] mb-4">
+            <BlogEditor ref={editorRef} />
+          </div>
         </div>
 
         {/* Category & Tags - Hidden on desktop as they are in the sidebar */}
@@ -135,11 +139,10 @@ export default function WritePage() {
                 <button
                   key={cat}
                   onClick={() => setCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                    category === cat
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${category === cat
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-muted text-muted-foreground border-transparent hover:border-border"
-                  }`}
+                    }`}
                 >
                   {cat}
                 </button>
@@ -180,7 +183,7 @@ export default function WritePage() {
       </div>
       <MobileNav />
 
-      <EditorPanel 
+      <EditorPanel
         category={category}
         setCategory={setCategory}
         tags={tags}
@@ -190,12 +193,14 @@ export default function WritePage() {
         setTagInput={setTagInput}
       />
 
-      <PublishDialog 
-        open={showPublishDialog}
-        onOpenChange={setShowPublishDialog}
+      <PublishDialog
+        category={category}
         publishing={publishing}
+        open={showPublishDialog}
+        initialData={{ title, category }}
+        setCategory={setCategory}
         onConfirm={confirmPublish}
-        initialData={{ title }}
+        onOpenChange={setShowPublishDialog}
       />
     </AppLayout>
   );

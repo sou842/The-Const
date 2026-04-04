@@ -67,21 +67,26 @@ export interface ThumbnailData {
 
 export interface PublishData {
   contentType: ContentType;
+  category: string;
   thumbnail: ThumbnailData;
 }
 
 interface PublishDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: (data: PublishData) => Promise<void>;
   publishing: boolean;
   initialData: {
     title: string;
+    category?: string;
   };
+  category: string;
+  onOpenChange: (open: boolean) => void;
+  setCategory: (category: string) => void;
+  onConfirm: (data: PublishData) => Promise<void>;
 }
 
 interface FieldError {
   title?: string;
+  category?: string;
   description?: string;
   url?: string;
   urls?: Record<number, string>;
@@ -103,6 +108,7 @@ function sanitizeText(text: string): string {
 
 function validateFields(
   title: string,
+  category: string,
   description: string,
   thumbType: ThumbType,
   singleUrl: string,
@@ -115,6 +121,10 @@ function validateFields(
     errors.title = "Title is required.";
   } else if (title.length > MAX_TITLE_LENGTH) {
     errors.title = `Title must be ${MAX_TITLE_LENGTH} characters or fewer.`;
+  }
+
+  if (!category) {
+    errors.category = "Category is required.";
   }
 
   if (description.length > MAX_DESCRIPTION_LENGTH) {
@@ -157,6 +167,7 @@ function validateFields(
 function hasErrors(errors: FieldError): boolean {
   return (
     !!errors.title ||
+    !!errors.category ||
     !!errors.description ||
     !!errors.url ||
     !!errors.videoUrl ||
@@ -256,9 +267,9 @@ function MediaTabButton({
       aria-selected={active}
       role="tab"
       className={cn(
-        "flex-1 flex items-center justify-center gap-2 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        "flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
         active
-          ? "bg-card text-foreground shadow-sm"
+          ? "bg-primary text-white shadow-sm"
           : "text-muted-foreground hover:text-foreground"
       )}
     >
@@ -267,8 +278,6 @@ function MediaTabButton({
     </button>
   );
 }
-
-// ─── Preview Card ─────────────────────────────────────────────────────────────
 
 interface PreviewCardProps {
   contentType: ContentType;
@@ -302,7 +311,7 @@ function PreviewCard({
     (thumbType === "video" && !!embedUrl);
 
   return (
-    <div className="bg-card rounded-2xl overflow-hidden border border-border/60 shadow-lg group transition-all duration-300 hover:shadow-xl hover:border-primary/20 hover:-translate-y-0.5">
+    <div className="bg-card rounded-2xl overflow-hidden border border-border/60 group transition-all duration-300 hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5">
       {/* Media area */}
       <div className="aspect-[16/9] bg-muted/50 relative overflow-hidden">
         {thumbType === "image" && isSingleValid ? (
@@ -419,14 +428,15 @@ function EmptyMediaPlaceholder() {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function PublishDialog({
   open,
-  onOpenChange,
-  onConfirm,
   publishing,
   initialData,
+  category,
+  setCategory,
+  onOpenChange,
+  onConfirm,
 }: PublishDialogProps) {
   const [contentType, setContentType] = useState<ContentType>("blog");
   const [thumbType, setThumbType] = useState<ThumbType>("image");
@@ -462,6 +472,7 @@ export function PublishDialog({
     if (submitted) {
       const e = validateFields(
         title,
+        category,
         description,
         thumbType,
         singleUrl,
@@ -470,7 +481,7 @@ export function PublishDialog({
       );
       setErrors(e);
     }
-  }, [title, description, thumbType, singleUrl, multiUrls, videoUrl, submitted]);
+  }, [title, category, description, thumbType, singleUrl, multiUrls, videoUrl, submitted]);
 
   const handleBlur = useCallback((field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -498,6 +509,7 @@ export function PublishDialog({
     setSubmitted(true);
     const e = validateFields(
       title,
+      category,
       description,
       thumbType,
       singleUrl,
@@ -509,6 +521,7 @@ export function PublishDialog({
 
     const data: PublishData = {
       contentType,
+      category,
       thumbnail: {
         type: thumbType,
         title: title.trim(),
@@ -534,8 +547,10 @@ export function PublishDialog({
   // Derived
   const videoId = extractYoutubeId(videoUrl);
   const isValid = !hasErrors(
-    validateFields(title, description, thumbType, singleUrl, multiUrls, videoUrl)
+    validateFields(title, category, description, thumbType, singleUrl, multiUrls, videoUrl)
   );
+
+  const isButtonDisabled = publishing || !title.trim() || !category;
 
   return (
     <Dialog open={open} onOpenChange={handleDismiss}>
@@ -550,28 +565,6 @@ export function PublishDialog({
         <div className="flex flex-col md:flex-row max-h-[90vh]">
           {/* ── Left: Configuration ───────────────────────────────────────── */}
           <div className="flex-1 flex flex-col min-w-0 overflow-y-auto border-r border-border/50 bg-background/60">
-            {/* Header */}
-            <div className="px-7 pt-7 pb-5 border-b border-border/40 bg-gradient-to-b from-background to-transparent">
-              <DialogHeader>
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-                    <Rocket className="h-5 w-5 text-primary" />
-                  </div>
-                  <DialogTitle
-                    id="publish-dialog-title"
-                    className="text-xl font-bold tracking-tight"
-                  >
-                    Publish Content
-                  </DialogTitle>
-                </div>
-                <DialogDescription
-                  id="publish-dialog-desc"
-                  className="text-sm text-muted-foreground ml-[52px]"
-                >
-                  Configure how your post appears in the main feed.
-                </DialogDescription>
-              </DialogHeader>
-            </div>
 
             <div className="px-7 py-6 space-y-6 flex-1">
               {/* Content Type */}
@@ -582,7 +575,43 @@ export function PublishDialog({
                 <TypeToggle value={contentType} onChange={setContentType} />
               </section>
 
-              <Separator className="opacity-40" />
+              {/* <Separator className="opacity-40" /> */}
+
+              {/* Category */}
+              {/* <section aria-label="Category selection" className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    Category <span className="text-destructive">*</span>
+                  </Label>
+                  {category && (
+                    <span className="text-[10px] text-primary font-medium bg-primary/5 px-2 py-0.5 rounded-full border border-primary/10">
+                      {category}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCategory(cat)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                        category === cat
+                          ? "bg-primary text-white border-primary shadow-sm"
+                          : "bg-background text-muted-foreground border-border/60 hover:border-primary/30 hover:text-foreground"
+                      )}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                {(touched.category || submitted) && (
+                  <FieldErrorMsg message={errors.category} />
+                )}
+              </section> */}
+
+              <Separator className="opacity-40" /> 
 
               {/* Card details */}
               <section aria-label="Promotion card details" className="space-y-4">
@@ -669,7 +698,7 @@ export function PublishDialog({
 
                 {/* Custom tab bar */}
                 <div
-                  className="flex p-1 bg-muted/70 rounded-xl gap-0.5"
+                  className="flex p-1 bg-muted/70 rounded-full gap-2"
                   role="tablist"
                   aria-label="Cover media type"
                 >
@@ -879,7 +908,7 @@ export function PublishDialog({
                 type="button"
                 className="flex-1 gap-2 relative"
                 onClick={handleConfirm}
-                disabled={publishing}
+                disabled={isButtonDisabled}
                 aria-busy={publishing}
               >
                 {publishing ? (
@@ -895,6 +924,14 @@ export function PublishDialog({
                 )}
               </Button>
             </div>
+            {isButtonDisabled && !publishing && (
+              <div className="px-7 pb-4">
+                <div className="flex justify-center items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>Title and Category are required to submit.</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ── Right: Preview ────────────────────────────────────────────── */}
@@ -945,11 +982,6 @@ export function PublishDialog({
                     : "Once submitted, your post will be reviewed by an admin before going live."}
                 </p>
               </div>
-
-              <p className="text-[9px] text-muted-foreground/50 text-center px-2">
-                Only HTTPS media URLs are accepted. All content is subject to
-                our community guidelines.
-              </p>
             </div>
           </aside>
         </div>
