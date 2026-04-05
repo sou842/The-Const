@@ -54,17 +54,18 @@ const BlogSchema = new Schema<IBlog>({
 BlogSchema.pre('validate', async function () {
     this.updatedAt = new Date();
 
-    const title = this.title || "untitled";
-    const slug = title
-        .trim()
-        .toLowerCase()
-        .replace(/&/g, "and")
-        .replace(/[^\w\s-]/g, "")
-        .replace(/\s+/g, "-");
+    if (!this.url) {
+        const title = this.title || "untitled";
+        const slug = title
+            .trim()
+            .toLowerCase()
+            .replace(/&/g, "and")
+            .replace(/[^\w\s-]/g, "")
+            .replace(/\s+/g, "-");
 
-    const suffix = uuidv4().split("-")[0];
-    this.url = `${slug}-${suffix}`;
-
+        const suffix = uuidv4().split("-")[0];
+        this.url = `${slug}-${suffix}`;
+    }
 });
 
 if (process.env.NODE_ENV === 'development') {

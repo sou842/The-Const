@@ -9,9 +9,14 @@ export interface BlogEditorHandle {
 
 const DRAFT_KEY = "blog_editor_draft";
 
-const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
+interface BlogEditorProps {
+  initialBlocks?: any[];
+}
+
+const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({ initialBlocks }, ref) => {
   const editorInstance = useRef<any>(null);
   const holderRef = useRef<HTMLDivElement>(null);
+  const isInitialized = useRef(false);
 
   useImperativeHandle(ref, () => ({
     save: async () => {
@@ -27,6 +32,7 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
   }));
 
   const handleSaveDraft = async (editor: any) => {
+    if (initialBlocks) return; // Don't save drafts if we are editing an existing post
     try {
       const output = await editor.save();
       localStorage.setItem(DRAFT_KEY, JSON.stringify(output.blocks));
@@ -36,6 +42,7 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
   };
 
   const contentManager = () => {
+    if (initialBlocks && initialBlocks.length > 0) return initialBlocks;
     if (typeof window === "undefined") return [];
     try {
       const draft = localStorage.getItem(DRAFT_KEY);
@@ -45,11 +52,22 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
     }
   };
 
+  // Handle initialBlocks updates after initialization
+  useEffect(() => {
+    if (isInitialized.current && editorInstance.current && initialBlocks) {
+      editorInstance.current.isReady.then(() => {
+        editorInstance.current.render({
+          blocks: initialBlocks
+        });
+      });
+    }
+  }, [initialBlocks]);
+
   useEffect(() => {
     let editor: any = null;
 
     const initEditor = async () => {
-      if (!holderRef.current || editorInstance.current) return;
+      if (!holderRef.current || isInitialized.current) return;
 
       const [
         EditorJS,
@@ -98,12 +116,6 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
             inlineToolbar: true,
           },
           code: { class: CodeTool as unknown as BlockToolConstructable },
-          // image: {
-          //   class: ImageTool as unknown as BlockToolConstructable,
-          //   config: {
-          //     endpoints: { byFile: "https://your-server.com/uploadImage" },
-          //   },
-          // },
           quote: {
             class: Quote as unknown as BlockToolConstructable,
             inlineToolbar: true,
@@ -163,6 +175,7 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
       });
 
       editorInstance.current = editor;
+      isInitialized.current = true;
     };
 
     initEditor();
@@ -171,6 +184,7 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
       if (editorInstance.current && typeof editorInstance.current.destroy === "function") {
         editorInstance.current.destroy();
         editorInstance.current = null;
+        isInitialized.current = false;
       }
     };
   }, []);

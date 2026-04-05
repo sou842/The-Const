@@ -13,6 +13,9 @@ import { getSession } from "@/lib/auth";
 import mongoose from "mongoose";
 import { cache } from "react";
 import { ThumbnailGallery } from "@/components/blog/ThumbnailGallery";
+import Link from "next/link";
+import { PenLine } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Register models
 void Like;
@@ -67,6 +70,7 @@ const getBlog = cache(async (url: string): Promise<BlogPost | null> => {
       likeCount,
       commentCount,
       isLikedByUser: !!userLike,
+      authorId: blogDoc.authorId // Ensure authorId is available for permission check
     };
   } catch (err) {
     console.error("Direct fetch blog error:", err);
@@ -77,12 +81,29 @@ const getBlog = cache(async (url: string): Promise<BlogPost | null> => {
 export default async function BlogReadPage({ params }: Props) {
   const { url } = await params;
   const blog = await getBlog(url);
+  const session = await getSession().catch(() => null);
 
   if (!blog) notFound();
+
+  const isAuthor = blog.authorId && session?.userId && String(blog.authorId) === String(session.userId);
+  const isAdmin = session?.role === "admin";
+  const canEdit = isAuthor || isAdmin;
 
   return (
     <AppLayout shadow="none">
       <div className="pb-20 md:pb-8 animate-fade-in max-w-4xl mx-auto px-4">
+        {/* Edit Button for Author/Admin */}
+        {canEdit && (
+          <div className="flex justify-end mb-4">
+            <Button asChild variant="outline" size="sm" className="gap-2 border-primary/20 hover:border-primary/50 hover:bg-primary/5">
+              <Link href={`/write?url=${blog.url}`}>
+                <PenLine className="h-4 w-4" />
+                Edit Post
+              </Link>
+            </Button>
+          </div>
+        )}
+
         {/* Thumbnails (Image, Gallery, or Video with Lightbox) */}
         <ThumbnailGallery thumbnail={blog.thumbnail || { type: 'image', image: blog.image }} title={blog.title} />
 
@@ -90,35 +111,6 @@ export default async function BlogReadPage({ params }: Props) {
         <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight leading-tight mb-8 text-foreground">
           {blog.title}
         </h1>
-
-        {/* Author & Meta */}
-        {/* <div className="flex items-center justify-between mb-6 pb-6 border-b">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={
-                typeof blog.authorId === "object" && blog.authorId !== null
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  ? (blog.authorId as unknown as any).profilePhoto
-                  : undefined
-              } />
-              <AvatarFallback>{authorInitials}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-semibold text-sm">{blog.author}</p>
-              {formattedDate && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" /> {formattedDate}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Eye className="h-3.5 w-3.5" /> {blog.views ?? 0}
-            </span>
-          </div>
-        </div> */}
 
         <article className="mb-8">
           {blog.body && (blog.body as EditorBlock[]).map((block: EditorBlock, index: number) => (

@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Eye, ArrowUpRight } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Eye, ArrowUpRight, User, LinkIcon, Pencil, Download, Flag } from "lucide-react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,13 @@ import { extractYoutubeId, buildYoutubeEmbedUrl } from "@/lib/videoUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaved } from "@/contexts/SavedContext";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { BlogPost } from "@/types/blog";
 
 interface PostCardProps {
@@ -334,13 +341,42 @@ export const PostCard = (props: PostCardProps) => {
     }
   }, [url, title]);
 
+  // Permission Check for Edit Mode
+  const authorId = creator?._id || (typeof author === "object" && "_id" in author ? author._id : undefined);
+  const isAuthor = user && authorId && String(user._id) === String(authorId);
+  const isAdmin = user?.role === "admin";
+  const canEdit = isAuthor || isAdmin;
 
+  const handleCopyLink = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareUrl = url
+      ? `${window.location.host === 'localhost:3000' ? 'http://' : 'https://'}${window.location.host}/blog/${url}`
+      : window.location.href;
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Link copied to clipboard!");
+  }, [url]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (url) {
+      router.push(`/write?url=${url}`);
+    }
+  }, [router, url]);
+
+  const handleViewProfile = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (authorId) {
+      router.push(`/profile/${authorId}`);
+    }
+  }, [router, authorId]);
 
   // Safe author data extraction
   const authorName = typeof author === "string" ? author : author?.name || "Anonymous";
   const authorAvatar = typeof author === "object" ? author?.avatar : creator?.profilePhoto;
   const authorTitle = typeof author === "object" ? author?.title : creator?.profession;
-  const authorId = creator?._id || (typeof author === "object" && "_id" in author ? author._id : undefined);
 
   const authorInitials =
     (typeof author === "object" ? author?.initials : undefined) ??
@@ -579,18 +615,75 @@ export const PostCard = (props: PostCardProps) => {
               </span>
             )}
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full text-muted-foreground/40 hover:text-foreground transition-all duration-300"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              aria-label="More options"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full text-muted-foreground/40 hover:text-foreground transition-all duration-300 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  aria-label="More options"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl p-1.5 shadow-xl border-foreground/5" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem 
+                  onClick={handleViewProfile}
+                  className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-muted"
+                >
+                  <User className="h-4 w-4 text-muted-foreground/70" />
+                  <span className="font-medium text-sm">View Creator Profile</span>
+                </DropdownMenuItem>
+                
+                {/* <DropdownMenuItem 
+                  className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-muted"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toast.info("PDF generation is coming soon!");
+                  }}
+                >
+                  <Download className="h-4 w-4 text-muted-foreground/70" />
+                  <span className="font-medium text-sm">Download PDF</span>
+                </DropdownMenuItem> */}
+
+                <DropdownMenuItem 
+                  onClick={handleCopyLink}
+                  className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-muted"
+                >
+                  <LinkIcon className="h-4 w-4 text-muted-foreground/70" />
+                  <span className="font-medium text-sm">Copy Link</span>
+                </DropdownMenuItem>
+
+                {canEdit && (
+                  <DropdownMenuItem 
+                    onClick={handleEdit}
+                    className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-muted text-primary hover:text-primary"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="font-medium text-sm">Edit Post</span>
+                  </DropdownMenuItem>
+                )}
+
+                {/* <DropdownMenuSeparator className="my-1.5 bg-foreground/5" />
+                
+                <DropdownMenuItem 
+                  className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-destructive/10 text-destructive hover:text-destructive"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toast.info("Report system is coming soon!");
+                  }}
+                >
+                  <Flag className="h-4 w-4" />
+                  <span className="font-medium text-sm">Report Article</span>
+                </DropdownMenuItem> */}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Content */}

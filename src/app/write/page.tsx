@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -19,13 +19,21 @@ import type { BlogEditorHandle } from "@/components/editor/BlogEditor";
 // Dynamic import — EditorJS needs browser APIs
 const BlogEditor = dynamic(() => import("@/components/editor/BlogEditor"), { ssr: false });
 
-import { poster } from "@/lib/api";
+import { poster, patcher, getter } from "@/lib/api";
 import { EditorPanel } from "@/components/RightSidebar";
 
 import { CATEGORIES } from "@/lib/constants";
 
 export default function WritePage() {
-  const { user } = useAuth();
+  return (
+    <Suspense fallback={<div>Loading editor...</div>}>
+      <WritePageContent />
+    </Suspense>
+  );
+}
+
+function WritePageContent() {
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const editorRef = useRef<BlogEditorHandle>(null);
 
@@ -35,6 +43,62 @@ export default function WritePage() {
   const [tagInput, setTagInput] = useState("");
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [publishing, setPublishing] = useState(false);
+
+  // Edit Mode state
+  const searchParams = useSearchParams();
+  const urlParam = searchParams.get("url");
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [initialBlocks, setInitialBlocks] = useState<any[]>([]);
+  const [fetching, setFetching] = useState(false);
+
+  useEffect(() => {
+    if (urlParam && !authLoading) {
+      if (!user) {
+        router.push("/login"); // Fixed: redirect to login if not logged in
+        return;
+      }
+
+      setIsEditMode(true);
+      setFetching(true);
+      getter(`/api/blogs/${urlParam}`)
+        .then((data) => {
+          if (data.blog) {
+            // Permission Check: Author or Admin
+            const isAuthor = String(data.blog.authorId) === String(user._id);
+            const isAdmin = user.role === "admin";
+
+            if (!isAuthor && !isAdmin) {
+              toast.error("Unauthorized: You don't have permission to edit this post.");
+              router.push("/");
+              return;
+            }
+
+            setTitle(data.blog.title);
+            setCategory(data.blog.category);
+            setTags(data.blog.tags || []);
+            setInitialBlocks(data.blog.body || []);
+          }
+        })
+        .catch((err) => {
+          console.error("Fetch blog error:", err);
+          toast.error("Failed to load blog for editing.");
+          router.push("/");
+        })
+        .finally(() => setFetching(false));
+    }
+  }, [urlParam, authLoading, user, router]);
+
+  // Global loading state to prevent unauthorized UI flickers
+  if (authLoading || (urlParam && fetching && !isEditMode)) {
+    return (
+      <AppLayout layout="editor">
+        <div className="h-[60vh] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground animate-pulse">Verifying permissions...</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const addTag = () => {
     const trimmed = tagInput.trim().replace(/^#/, "");
@@ -67,20 +131,30 @@ export default function WritePage() {
         return;
       }
 
-      await poster("/api/blogs", {
+      const payload = {
         title: title.trim(),
         content: blocks,
         category: publishData.category,
         tags,
-        url: title.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
         thumbnail: publishData.thumbnail,
         contentType: publishData.contentType,
         language: "en",
-      });
+      };
 
-      toast.success("Blog submitted! It will appear in the feed once approved.");
+      if (isEditMode) {
+        await patcher(`/api/blogs/${urlParam}`, payload);
+        toast.success("Blog updated successfully!");
+        router.push(`/blog/${urlParam}`);
+      } else {
+        await poster("/api/blogs", {
+          ...payload,
+          url: title.trim().toLowerCase().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
+        });
+        toast.success("Blog submitted! It will appear in the feed once approved.");
+        router.push("/");
+      }
+
       setShowPublishDialog(false);
-      router.push("/");
     } catch (error) {
       console.error("Publish error:", error);
     } finally {
@@ -95,14 +169,14 @@ export default function WritePage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <PenLine className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-lg font-semibold">Write a Blog</h1>
+            <h1 className="text-lg font-semibold">{isEditMode ? "Edit Blog" : "Write a Blog"}</h1>
           </div>
           <Button
             onClick={handlePublish}
-            disabled={!title.trim() || !category}
+            disabled={!title.trim() || !category || fetching}
             className="gap-2"
           >
-            Publish
+            {isEditMode ? "Update" : "Publish"}
           </Button>
         </div>
 
@@ -125,8 +199,13 @@ export default function WritePage() {
           </div>
 
           {/* Editor */}
-          <div className="min-h-[500px] mb-4">
-            <BlogEditor ref={editorRef} />
+          <div className="min-h-[500px] mb-4 relative">
+            {fetching && (
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
+            <BlogEditor ref={editorRef} initialBlocks={initialBlocks} />
           </div>
         </div>
 
