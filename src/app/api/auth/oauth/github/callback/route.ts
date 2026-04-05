@@ -3,10 +3,9 @@ import connectDB from "@/lib/db";
 import { User } from "@/models/User";
 import { signJWT, createSessionCookie } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { GITHUB_EMAIL_URL, GITHUB_TOKEN_URL, GITHUB_USER_URL } from "@/lib/constants";
 
-const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
-const GITHUB_USER_URL = "https://api.github.com/user";
-const GITHUB_EMAIL_URL = "https://api.github.com/user/emails";
+
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;

@@ -1,6 +1,7 @@
+import { GOOGLE_AUTH_URL } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
-const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;

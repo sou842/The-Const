@@ -1,6 +1,6 @@
+import { GITHUB_AUTH_URL } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
-const GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;

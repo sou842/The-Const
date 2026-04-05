@@ -3,9 +3,8 @@ import connectDB from "@/lib/db";
 import { User } from "@/models/User";
 import { signJWT, createSessionCookie } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { GOOGLE_TOKEN_URL, GOOGLE_USER_INFO_URL } from "@/lib/constants";
 
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_USER_INFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
