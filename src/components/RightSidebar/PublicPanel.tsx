@@ -12,13 +12,13 @@ const PublicPanel = () => {
   const { data: exploreData, isLoading: isLoadingTrending } = useSWR(
     "/api/blogs/explore?sort=trending",
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
   const { data: networkData, isLoading: isLoadingSuggestions } = useSWR(
     "/api/network/suggestions?limit=5",
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: false, dedupingInterval: 60000 }
   );
 
   const trendingTopics = exploreData?.trendingTags || [];

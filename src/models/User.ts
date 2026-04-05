@@ -74,4 +74,7 @@ const UserSchema = new Schema<IUser>({
   }
 });
 
+// Suggestions and admin/user lists commonly filter by status and sort by createdAt
+UserSchema.index({ status: 1, createdAt: -1 });
+
 export const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);

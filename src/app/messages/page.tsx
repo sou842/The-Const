@@ -90,7 +90,7 @@ function MessagesPageInner() {
   const { data: convData, isLoading: convsLoading, mutate: refetchConvs } = useSWR(
     user ? "/api/messages/conversations" : null,
     getter,
-    { refreshInterval: 10000 }
+    { refreshInterval: 0, revalidateOnFocus: false }
   );
 
   const { data: connData, isLoading: connsLoading } = useSWR(

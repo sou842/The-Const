@@ -60,6 +60,7 @@ export function usePusherChat({
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const myTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
+  const readDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Load historical messages from the REST API ────────────────────────────
   const loadHistory = useCallback(async () => {
@@ -107,9 +108,12 @@ export function usePusherChat({
 
       // Auto-mark as read if the message is from the other user
       if (msg.senderId !== currentUserId) {
-        fetch(`/api/messages/${conversationId}/read`, { method: "POST" }).catch(
-          () => {}
-        );
+        if (readDebounceRef.current) clearTimeout(readDebounceRef.current);
+        readDebounceRef.current = setTimeout(() => {
+          fetch(`/api/messages/${conversationId}/read`, { method: "POST" }).catch(
+            () => {}
+          );
+        }, 1000);
       }
     };
 
@@ -164,6 +168,7 @@ export function usePusherChat({
       pusher.unsubscribe(channelName);
       setIsOtherTyping(false);
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (readDebounceRef.current) clearTimeout(readDebounceRef.current);
     };
   }, [conversationId, currentUserId, loadHistory]);
 

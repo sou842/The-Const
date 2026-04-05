@@ -4,6 +4,7 @@ import { Connection } from '@/models/Connection';
 import { User } from '@/models/User';
 import { getSessionFromRequest } from '@/lib/auth';
 import mongoose from 'mongoose';
+import { getCache, setCache } from '@/lib/memoryCache';
 
 // ─── GET /api/network/suggestions?page=1&limit=20 ────────────────────────────
 // "People you may know" — all users excluding self, existing connections, and pending parties.
@@ -16,6 +17,12 @@ export async function GET(req: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
+
+    const cacheKey = `suggestions:${session.userId}:${page}:${limit}`;
+    const cached = getCache<{ suggestions: unknown[]; total: number; page: number; totalPages: number }>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
 
     await connectDB();
     const userId = new mongoose.Types.ObjectId(session.userId);
@@ -47,7 +54,9 @@ export async function GET(req: NextRequest) {
       User.countDocuments({ _id: { $nin: excludedObjectIds }, status: 'active' }),
     ]);
 
-    return NextResponse.json({ suggestions, total, page, totalPages: Math.ceil(total / limit) });
+    const response = { suggestions, total, page, totalPages: Math.ceil(total / limit) };
+    setCache(cacheKey, response, 60000);
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Network suggestions error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

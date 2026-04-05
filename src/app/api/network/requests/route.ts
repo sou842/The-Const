@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import { Connection } from '@/models/Connection';
 import { getSessionFromRequest } from '@/lib/auth';
-import mongoose from 'mongoose';
+import mongoose, { PipelineStage } from 'mongoose';
 
 // ─── GET /api/network/requests?type=received|sent ────────────────────────────
 // List pending connection requests (received or sent).
@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type') || 'received'; // 'received' | 'sent'
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '0');
+    const skip = (page - 1) * limit;
 
     await connectDB();
     const userId = new mongoose.Types.ObjectId(session.userId);
@@ -24,9 +27,10 @@ export async function GET(req: NextRequest) {
     // Determine which user field to join (the other party)
     const lookupField = type === 'sent' ? 'receiverId' : 'requesterId';
 
-    const requests = await Connection.aggregate([
+    const requestsPipeline: PipelineStage[] = [
       { $match: matchStage },
       { $sort: { createdAt: -1 } },
+      ...(limit > 0 ? [{ $skip: skip }, { $limit: limit }] : []),
       {
         $lookup: {
           from: 'users',
@@ -50,9 +54,15 @@ export async function GET(req: NextRequest) {
           'user.shortBio': 1,
         },
       },
+    ];
+
+    const [requests, total] = await Promise.all([
+      Connection.aggregate(requestsPipeline),
+      Connection.countDocuments(matchStage),
     ]);
 
-    return NextResponse.json({ requests, type });
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+    return NextResponse.json({ requests, type, total, page, totalPages });
   } catch (error) {
     console.error('Network requests error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
