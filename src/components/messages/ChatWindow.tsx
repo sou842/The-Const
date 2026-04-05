@@ -106,14 +106,14 @@ export function ChatWindow({
                 ))}
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center bg-card/5 border border-dashed rounded-3xl m-4">
-                <div className="p-4 rounded-full bg-primary/10">
-                  <MessageCircle className="h-10 w-10 text-primary" />
+              <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center bg-card/5 rounded-3xl">
+                <div className="p-6 rounded-full bg-primary/10">
+                  <MessageCircle className="h-10 w-10 text-primary/50" />
                 </div>
                 <div className="max-w-[200px] space-y-1.5">
                   <p className="font-semibold text-sm">No messages yet</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    This is the beginning of your conversation with {activeConversation.otherUser.name}.
+                    This is the beginning of your conversation with {activeConversation?.otherUser?.name}.
                   </p>
                 </div>
               </div>

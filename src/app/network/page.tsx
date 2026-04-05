@@ -94,16 +94,16 @@ function Section({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function NetworkPage() {
   const { data: receivedData, isLoading: loadingReceived, mutate: mutateReceived } =
-    useSWR("/api/network/requests?type=received", getter, { revalidateOnFocus: true });
+    useSWR("/api/network/requests?type=received", getter, { revalidateOnFocus: false });
 
   const { data: sentData, isLoading: loadingSent, mutate: mutateSent } =
-    useSWR("/api/network/requests?type=sent", getter, { revalidateOnFocus: true });
+    useSWR("/api/network/requests?type=sent", getter, { revalidateOnFocus: false });
 
   const { data: connectionsData, isLoading: loadingConnections, mutate: mutateConnections } =
-    useSWR("/api/network/connections", getter, { revalidateOnFocus: true });
+    useSWR("/api/network/connections", getter, { revalidateOnFocus: false });
 
   const { data: suggestionsData, isLoading: loadingSuggestions, mutate: mutateSuggestions } =
-    useSWR("/api/network/suggestions", getter, { revalidateOnFocus: true });
+    useSWR("/api/network/suggestions", getter, { revalidateOnFocus: false });
 
   const receivedRequests: RequestEntry[] = receivedData?.requests ?? [];
   const sentRequests: RequestEntry[] = sentData?.requests ?? [];

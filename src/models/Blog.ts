@@ -51,6 +51,15 @@ const BlogSchema = new Schema<IBlog>({
     contentType: { type: String, enum: ['blog', 'project'], default: 'blog' },
 });
 
+// Common feed/explore/admin query patterns
+BlogSchema.index({ status: 1, publishedDate: -1 });
+BlogSchema.index({ status: 1, createdAt: -1 });
+BlogSchema.index({ status: 1, views: -1 });
+BlogSchema.index({ authorId: 1, createdAt: -1 });
+BlogSchema.index({ authorId: 1, status: 1, publishedDate: -1 });
+BlogSchema.index({ url: 1 });
+BlogSchema.index({ title: "text", tags: "text", category: "text" });
+
 BlogSchema.pre('validate', async function () {
     this.updatedAt = new Date();
 

@@ -52,3 +52,24 @@ export interface BlogPost {
   };
   isSaved?: boolean;
 }
+
+export interface Blog {
+  _id: string;
+  title: string;
+  author: string;
+  authorId: {
+    _id: string;
+    name: string;
+    profilePhoto?: string;
+    username?: string;
+    profession?: string;
+  };
+  category: string;
+  url: string;
+  thumbnail: {
+    image?: string;
+    title?: string;
+  };
+  views: number;
+  createdAt: string;
+}

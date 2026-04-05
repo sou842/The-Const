@@ -53,6 +53,7 @@ interface PostCardProps {
     profession?: string;
   };
   isSaved?: boolean;
+  imagePriority?: boolean;
 }
 
 export const PostCard = (props: PostCardProps) => {
@@ -75,6 +76,7 @@ export const PostCard = (props: PostCardProps) => {
     status,
     onStatusUpdate,
     creator,
+    imagePriority,
   } = props;
 
   const router = useRouter();
@@ -508,7 +510,8 @@ export const PostCard = (props: PostCardProps) => {
                 src={thumbnail?.image || image || thumbnail?.url}
                 alt={title || "Blog post cover"}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                loading="lazy"
+                loading={imagePriority ? "eager" : "lazy"}
+                fetchPriority={imagePriority ? "high" : "auto"}
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}
