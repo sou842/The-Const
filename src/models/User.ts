@@ -4,7 +4,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IUser extends Document {
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: 'admin' | 'creator';
   access: {
     canApprove: boolean;
@@ -13,15 +13,18 @@ export interface IUser extends Document {
   createdAt: Date;
   status: 'active' | 'inactive';
   savedBlogs: mongoose.Types.ObjectId[];
-  
-  // Public Creator Profile Fields (Optional)
-  username?: string; // e.g., 'johndoe'
+
+  oauthProvider?: 'google' | 'github' | null;
+  oauthId?: string;
+  emailVerified?: boolean;
+ 
+  username?: string;
   profilePhoto?: string;
   bannerPhoto?: string;
   shortBio?: string;
   location?: string;
   profession?: string;
-  expertise?: string[]; // Areas of Expertise / Topics
+  expertise?: string[];
   yearsOfExperience?: number;
   longBio?: string;
   socialLinks?: {
@@ -37,7 +40,7 @@ export interface IUser extends Document {
 const UserSchema = new Schema<IUser>({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  password: { type: String, required: false },
   role: { type: String, enum: ['admin', 'creator'], default: 'creator' },
   access: {
     canApprove: { type: Boolean, default: false },
@@ -47,7 +50,11 @@ const UserSchema = new Schema<IUser>({
   status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   savedBlogs: [{ type: Schema.Types.ObjectId, ref: 'Blog' }],
 
-  // Public Creator Profile Fields
+  // OAuth fields  
+  oauthProvider: { type: String, enum: ['google', 'github', null], default: null },
+  oauthId: { type: String },
+  emailVerified: { type: Boolean, default: false },
+
   username: { type: String, unique: true, sparse: true },
   profilePhoto: { type: String },
   bannerPhoto: { type: String },
