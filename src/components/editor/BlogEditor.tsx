@@ -7,68 +7,184 @@ export interface BlogEditorHandle {
   save: () => Promise<object[] | null>;
 }
 
+const DRAFT_KEY = "blog_editor_draft";
 
+interface BlogEditorProps {
+  initialBlocks?: any[];
+}
 
-const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
-  const editorRef = useRef<{ save: () => Promise<{ blocks: object[] }>, destroy: () => void } | null>(null);
+const BlogEditor = forwardRef<BlogEditorHandle, BlogEditorProps>(({ initialBlocks }, ref) => {
+  const editorInstance = useRef<any>(null);
   const holderRef = useRef<HTMLDivElement>(null);
+  const isInitialized = useRef(false);
 
   useImperativeHandle(ref, () => ({
     save: async () => {
-      if (!editorRef.current) return null;
+      if (!editorInstance.current) return null;
       try {
-        const output = await editorRef.current.save();
+        const output = await editorInstance.current.save();
         return output?.blocks ?? [];
-      } catch {
+      } catch (error) {
+        console.error("Editor save error:", error);
         return null;
       }
     },
   }));
 
+  const handleSaveDraft = async (editor: any) => {
+    if (initialBlocks) return; // Don't save drafts if we are editing an existing post
+    try {
+      const output = await editor.save();
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(output.blocks));
+    } catch (error) {
+      console.error("Draft save error:", error);
+    }
+  };
+
+  const contentManager = () => {
+    if (initialBlocks && initialBlocks.length > 0) return initialBlocks;
+    if (typeof window === "undefined") return [];
+    try {
+      const draft = localStorage.getItem(DRAFT_KEY);
+      return draft ? JSON.parse(draft) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Handle initialBlocks updates after initialization
   useEffect(() => {
-    let editor: typeof editorRef.current = null;
+    if (isInitialized.current && editorInstance.current && initialBlocks) {
+      editorInstance.current.isReady.then(() => {
+        editorInstance.current.render({
+          blocks: initialBlocks
+        });
+      });
+    }
+  }, [initialBlocks]);
+
+  useEffect(() => {
+    let editor: any = null;
 
     const initEditor = async () => {
-      const EditorJS = (await import("@editorjs/editorjs")).default;
-      const Header = (await import("@editorjs/header")).default;
-      const List = (await import("@editorjs/list")).default;
-      const CodeTool = (await import("@editorjs/code")).default;
-      const Quote = (await import("@editorjs/quote")).default;
-      const Table = (await import("@editorjs/table")).default;
-      const InlineCode = (await import("@editorjs/inline-code")).default;
-      const DragDrop = (await import("editorjs-drag-drop")).default;
+      if (!holderRef.current || isInitialized.current) return;
 
-      if (!holderRef.current || editorRef.current) return;
+      const [
+        EditorJS,
+        Header,
+        List,
+        CodeTool,
+        Quote,
+        Table,
+        InlineCode,
+        DragDrop,
+        Marker,
+        Warning,
+        LinkTool,
+        InlineImage,
+        CustomYouTubeEmbed,
+      ] = await Promise.all([
+        import("@editorjs/editorjs").then((m) => m.default),
+        import("@editorjs/header").then((m) => m.default),
+        import("@editorjs/list").then((m) => m.default),
+        import("@editorjs/code").then((m) => m.default),
+        import("@editorjs/quote").then((m) => m.default),
+        import("@editorjs/table").then((m) => m.default),
+        import("@editorjs/inline-code").then((m) => m.default),
+        import("editorjs-drag-drop").then((m) => m.default),
+        import("@editorjs/marker").then((m) => m.default),
+        import("@editorjs/warning").then((m) => m.default),
+        import("@editorjs/link").then((m) => m.default),
+        import("editorjs-inline-image").then((m) => m.default),
+        import("./tools/CustomYouTubeEmbed").then((m) => m.default),
+      ]);
 
       editor = new EditorJS({
         holder: holderRef.current,
         tools: {
           header: {
             class: Header as unknown as BlockToolConstructable,
-            config: { levels: [1, 2, 3, 4], defaultLevel: 2 },
+            config: {
+              placeholder: "Start writing your content...",
+              levels: [1, 2, 3, 4],
+              defaultLevel: 2,
+            },
             inlineToolbar: true,
           },
-          list: { class: List as unknown as BlockToolConstructable, inlineToolbar: true },
+          list: {
+            class: List as unknown as BlockToolConstructable,
+            inlineToolbar: true,
+          },
           code: { class: CodeTool as unknown as BlockToolConstructable },
-          quote: { class: Quote as unknown as BlockToolConstructable, inlineToolbar: true },
-          table: { class: Table as unknown as BlockToolConstructable, inlineToolbar: true },
-          inlineCode: { class: InlineCode as unknown as BlockToolConstructable },
+          quote: {
+            class: Quote as unknown as BlockToolConstructable,
+            inlineToolbar: true,
+          },
+          table: {
+            class: Table as unknown as BlockToolConstructable,
+            inlineToolbar: true,
+          },
+          inlineCode: {
+            class: InlineCode as unknown as BlockToolConstructable,
+          },
+          inlineImage: {
+            class: InlineImage as unknown as BlockToolConstructable,
+            inlineToolbar: true,
+            config: {
+              embed: {
+                display: true,
+              },
+            },
+          },
+          youtubeEmbed: {
+            class: CustomYouTubeEmbed as unknown as BlockToolConstructable,
+            config: {
+              placeholder: "Enter YouTube video link",
+            },
+          },
+          marker: {
+            class: Marker as unknown as BlockToolConstructable,
+            shortcut: "CMD+SHIFT+M",
+          },
+          linkTool: {
+            class: LinkTool as unknown as BlockToolConstructable,
+            config: {
+              endpoint: "http://localhost:8008/fetchUrl", // Your endpoint that provides URL metadata
+            },
+          },
+          warning: {
+            class: Warning as unknown as BlockToolConstructable,
+            config: {
+              titlePlaceholder: "Title",
+              messagePlaceholder: "Message",
+            },
+          },
         },
-        placeholder: "Start writing your blog post...",
+        data: {
+          blocks: contentManager(),
+        },
+        onChange: () => {
+          handleSaveDraft(editor);
+        },
         onReady: () => {
-          new DragDrop(editor as object);
+          if (editor) {
+            new DragDrop(editor as object);
+          }
         },
-      }) as unknown as typeof editorRef.current;
+        placeholder: "Start writing your content...",
+      });
 
-      editorRef.current = editor;
+      editorInstance.current = editor;
+      isInitialized.current = true;
     };
 
     initEditor();
 
     return () => {
-      if (editorRef.current && typeof editorRef.current.destroy === "function") {
-        editorRef.current.destroy();
-        editorRef.current = null;
+      if (editorInstance.current && typeof editorInstance.current.destroy === "function") {
+        editorInstance.current.destroy();
+        editorInstance.current = null;
+        isInitialized.current = false;
       }
     };
   }, []);
@@ -83,3 +199,4 @@ const BlogEditor = forwardRef<BlogEditorHandle>((_, ref) => {
 
 BlogEditor.displayName = "BlogEditor";
 export default BlogEditor;
+

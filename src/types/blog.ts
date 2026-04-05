@@ -1,41 +1,54 @@
-export interface BlogAuthor {
-  _id: string;
-  name: string;
-  username?: string;
-  profilePhoto?: string;
-  profession?: string;
+export interface EditorBlock {
+
+  id?: string;
+  type: string;
+  data: any;
+}
+
+export interface BlogContent {
+  time?: number;
+  block: EditorBlock[];
+  version?: string;
 }
 
 export interface BlogPost {
   _id: string;
   title: string;
-  body?: Record<string, unknown>[]; // EditorJS OutputData blocks
-  thumbnail: {
-    title?: string;
-    description?: string;
-    image?: string;
-  };
-  category: string;
-  tags: string[];
   author: string;
+  authorId?: string | { _id?: string; name: string; avatar?: string; title?: string; profilePhoto?: string; profession?: string };
+  content?: string;
+  body?: EditorBlock[];
+  thumbnail?: { 
+    type?: 'image' | 'multiple-images' | 'video';
+    image?: string; 
+    title?: string; 
+    description?: string;
+    url?: string;
+    urls?: string[];
+    loop?: boolean;
+  };
+  image?: string;
+  time?: string;
+  publishedDate?: string | Date;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+  likeCount?: number;
+  isLikedByUser?: boolean;
+  commentCount?: number;
+  views?: number;
+  category?: string;
+  tags?: string[];
+  url: string;
+  status?: "approved" | "pending" | "rejected";
+  editorType?: string;
+  isTrending?: boolean;
+  contentType?: "blog" | "project";
+  language?: "en" | "hi";
   creator?: {
+    _id?: string;
     name?: string;
     profilePhoto?: string;
     profession?: string;
   };
-  previewText?: string;
-  authorId: string | BlogAuthor;
-  publishedDate?: string;
-  status: "approved" | "pending" | "rejected";
-  editorType: string;
-  views: number;
-  videoUrl?: string;
-  language: "en" | "hi";
-  url: string;
-  createdAt: string;
-  updatedAt: string;
-  isTrending: boolean;
-  likeCount?: number;
-  commentCount?: number;
-  isLikedByUser?: boolean;
+  isSaved?: boolean;
 }

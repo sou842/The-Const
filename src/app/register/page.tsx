@@ -201,7 +201,7 @@ export default function Register() {
             </Button>
           </form>
 
-          <div className="relative py-4">
+          {/* <div className="relative py-4">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-muted-foreground/10" /></div>
             <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em] font-bold">
               <span className="bg-background px-4 text-muted-foreground/50">One-Tap Auth</span>
@@ -235,7 +235,7 @@ export default function Register() {
               </svg>
               GitHub
             </Button>
-          </div>
+          </div> */}
 
           <p className="mt-12 text-center text-xs text-muted-foreground font-light">
             Already a member?{" "}

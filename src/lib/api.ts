@@ -67,6 +67,24 @@ export const putter = async (url: string, data: unknown) => {
 };
 
 /**
+ * Axios wrapper for PATCH requests.
+ */
+export const patcher = async (url: string, data: unknown) => {
+  try {
+    const result = await axios.patch(url, data, {
+      headers: {
+        Authorization: `Bearer ${getAuthToken()}`,
+      },
+    });
+    return result.data;
+  } catch (error: unknown) {
+    const message = (axios.isAxiosError(error) && error.response?.data?.error) || "Something went wrong: Please try again";
+    toast.error(message);
+    throw error;
+  }
+};
+
+/**
  * Axios wrapper for DELETE requests.
  */
 export const deleter = async (url: string, data?: unknown) => {

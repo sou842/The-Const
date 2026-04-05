@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import Cookies from "js-cookie";
 
 interface AuthUser {
   _id: string;
@@ -23,8 +24,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window === "undefined") return null;
+    const savedUser = Cookies.get(process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME!);
+    try {
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading, setLoading] = useState(!user);
 
   const refresh = useCallback(async () => {
     try {
@@ -32,11 +41,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
+        Cookies.set(process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME!, JSON.stringify(data.user), { expires: 7 }); // Sync cookie with latest data
       } else {
         setUser(null);
+        Cookies.remove(process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME!);
       }
     } catch {
       setUser(null);
+      Cookies.remove(process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME!);
     } finally {
       setLoading(false);
     }
@@ -45,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
+    Cookies.remove(process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME!);
   }, []);
 
   useEffect(() => {

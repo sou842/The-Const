@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const body = await req.json();
-    const { title, content, category, tags, thumbnail, language, url } = body;
+    const { title, content, category, tags, thumbnail, language, url, contentType } = body;
 
     if (!title || !content || !category) {
       return NextResponse.json({ error: "Title, content, and category are required" }, { status: 400 });
@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
       editorType: "EDITORJS",
       language: language || "en",
       url: url || "", // generation handled by hook if empty
+      contentType: contentType || "blog",
     });
 
     await blog.save();

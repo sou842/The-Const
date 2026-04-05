@@ -49,3 +49,45 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ url:
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ url: string }> }) {
+  try {
+    const session = await getSessionFromRequest(req);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectDB();
+    const { url } = await params;
+    const body = await req.json();
+    const { title, content, category, tags, thumbnail, contentType } = body;
+
+    const blog = await Blog.findOne({ url });
+    if (!blog) {
+      return NextResponse.json({ error: "Blog not found" }, { status: 404 });
+    }
+
+    // Authorization: Original author or admin
+    const isAuthor = blog.authorId.toString() === session.userId;
+    const isAdmin = session.role === "admin";
+
+    if (!isAuthor && !isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Update fields
+    if (title !== undefined) blog.title = title;
+    if (content !== undefined) blog.body = content;
+    if (category !== undefined) blog.category = category;
+    if (tags !== undefined) blog.tags = tags;
+    if (thumbnail !== undefined) blog.thumbnail = thumbnail;
+    if (contentType !== undefined) blog.contentType = contentType;
+
+    await blog.save();
+
+    return NextResponse.json({ message: "Blog updated successfully", blog });
+  } catch (error) {
+    console.error("Update blog error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

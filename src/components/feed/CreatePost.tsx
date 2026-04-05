@@ -28,12 +28,23 @@ export const CreatePost = () => {
       <div className="flex items-center gap-1 mt-3 pt-3 border-t overflow-x-auto">
         <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
           <Link href="/write">
-            <ImageIcon className="h-4 w-4" /> Photo
+            <span className="flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" /> Photo
+            </span>
           </Link>
         </Button>
         <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" asChild>
           <Link href="/write">
-            <Video className="h-4 w-4" /> Video
+            <span className="flex items-center gap-2">
+              <Video className="h-4 w-4" /> Video
+            </span>
+          </Link>
+        </Button>
+        <Button variant="ghost" size="sm" className="hidden sm:flex gap-2 text-muted-foreground" asChild>
+          <Link href="/write">
+            <span className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Article
+            </span>
           </Link>
         </Button>
         <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
