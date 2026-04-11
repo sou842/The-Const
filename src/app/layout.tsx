@@ -3,6 +3,12 @@ import { Inter, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import {
+  absoluteUrl,
+  buildOrganizationJsonLd,
+  buildWebsiteJsonLd,
+  siteConfig,
+} from "@/lib/seo";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -15,8 +21,49 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "The Const",
-  description: "Professional networking for the future",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  alternates: {
+    canonical: absoluteUrl("/"),
+  },
+  openGraph: {
+    type: "website",
+    locale: siteConfig.locale,
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    images: [
+      {
+        url: absoluteUrl("/opengraph-image"),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} social preview`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [absoluteUrl("/opengraph-image")],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -32,6 +79,20 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <Providers>{children}</Providers>
+        <Script
+          id="organization-jsonld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(buildOrganizationJsonLd()),
+          }}
+        />
+        <Script
+          id="website-jsonld"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(buildWebsiteJsonLd()),
+          }}
+        />
       </body>
       <Script
         strategy="afterInteractive"
