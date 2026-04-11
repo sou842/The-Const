@@ -19,7 +19,7 @@ const PROTECTED_ROUTES = [
   "/profile",
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { nextUrl, cookies } = request;
   const path = nextUrl.pathname;
 
