@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createNoIndexMetadata } from "@/lib/seo";
+import { AdminLayout as AdminLayoutWrapper } from "@/components/admin/AdminLayout";
 
 export const metadata: Metadata = createNoIndexMetadata(
   "Admin",
@@ -10,5 +11,5 @@ export const metadata: Metadata = createNoIndexMetadata(
 export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return <AdminLayoutWrapper>{children}</AdminLayoutWrapper>;
 }
