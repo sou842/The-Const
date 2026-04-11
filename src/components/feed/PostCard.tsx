@@ -1,10 +1,13 @@
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Eye, ArrowUpRight, User, LinkIcon, Pencil, Download, Flag } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Eye, ArrowUpRight, User, LinkIcon, Pencil, Flag, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { extractYoutubeId, buildYoutubeEmbedUrl } from "@/lib/videoUtils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,13 +20,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { BlogPost } from "@/types/blog";
 
 interface PostCardProps {
   _id?: string;
   author: string | { _id?: string; name: string; avatar?: string; title?: string; initials?: string };
   content?: string;
-  body?: any[];
+  body?: unknown[];
   thumbnail?: {
     type?: 'image' | 'multiple-images' | 'video';
     image?: string;
@@ -56,6 +60,17 @@ interface PostCardProps {
   imagePriority?: boolean;
 }
 
+const REPORT_REASONS = [
+  { value: "spam", label: "Spam" },
+  { value: "harassment", label: "Harassment" },
+  { value: "misinformation", label: "Misinformation" },
+  { value: "hate", label: "Hate Speech" },
+  { value: "violence", label: "Violence" },
+  { value: "other", label: "Other" },
+] as const;
+
+type ReportReason = (typeof REPORT_REASONS)[number]["value"];
+
 export const PostCard = (props: PostCardProps) => {
   const {
     _id,
@@ -86,6 +101,10 @@ export const PostCard = (props: PostCardProps) => {
   // State management
   const [liked, setLiked] = useState(isLikedByUser);
   const [likeCountState, setLikeCountState] = useState(likeCount);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason | "">("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
   const isBookmarked = _id ? checkIsSaved(_id) : false;
 
   // Refs for debouncing and tracking
@@ -230,8 +249,8 @@ export const PostCard = (props: PostCardProps) => {
                   Math.max(0, intendedLikeState.current ? prev + 1 : prev - 1)
                 );
               }
-            } catch (syncError: any) {
-              if (syncError.name !== "AbortError") {
+            } catch (syncError: unknown) {
+              if (!(syncError instanceof Error) || syncError.name !== "AbortError") {
                 console.error("Sync failed:", syncError);
                 // Update to intended state locally
                 setLiked(intendedLikeState.current);
@@ -246,9 +265,9 @@ export const PostCard = (props: PostCardProps) => {
             setLikeCountState(data.likeCount);
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Don't show error for aborted requests
-        if (error.name === "AbortError") {
+        if (error instanceof Error && error.name === "AbortError") {
           return;
         }
 
@@ -299,9 +318,9 @@ export const PostCard = (props: PostCardProps) => {
       try {
         // toggleSave should handle optimistic updates and API calls
         await toggleSave(props as unknown as BlogPost);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Don't show error for aborted requests
-        if (error.name === "AbortError") {
+        if (error instanceof Error && error.name === "AbortError") {
           return;
         }
         console.error("Failed to save post:", error);
@@ -334,9 +353,9 @@ export const PostCard = (props: PostCardProps) => {
       // Fallback to clipboard
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Link copied to clipboard!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       // User cancelled share or clipboard failed
-      if (error.name !== "AbortError") {
+      if (!(error instanceof Error) || error.name !== "AbortError") {
         console.error("Share failed:", error);
         toast.error("Could not share link");
       }
@@ -374,6 +393,70 @@ export const PostCard = (props: PostCardProps) => {
       router.push(`/profile/${authorId}`);
     }
   }, [router, authorId]);
+
+  const openReportModal = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+      toast.error("Please log in to report an article");
+      return;
+    }
+
+    if (!_id) {
+      toast.error("This article cannot be reported right now");
+      return;
+    }
+
+    setReportModalOpen(true);
+  }, [user, _id]);
+
+  const submitReport = useCallback(async () => {
+    if (!reportReason) {
+      toast.error("Please select a reason");
+      return;
+    }
+
+    const details = reportDetails.trim();
+    if (details.length < 10) {
+      toast.error("Please provide at least 10 characters");
+      return;
+    }
+
+    if (!_id) {
+      toast.error("This article cannot be reported right now");
+      return;
+    }
+
+    setIsReporting(true);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blogId: _id,
+          reason: reportReason,
+          details,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Failed to submit report");
+        return;
+      }
+
+      toast.success("Report submitted. Our moderation team will review it soon.");
+      setReportModalOpen(false);
+      setReportReason("");
+      setReportDetails("");
+    } catch (error) {
+      console.error("Submit report error:", error);
+      toast.error("Failed to submit report");
+    } finally {
+      setIsReporting(false);
+    }
+  }, [reportReason, reportDetails, _id]);
 
   // Safe author data extraction
   const authorName = typeof author === "string" ? author : author?.name || "Anonymous";
@@ -641,7 +724,7 @@ export const PostCard = (props: PostCardProps) => {
                   <User className="h-4 w-4 text-muted-foreground/70" />
                   <span className="font-medium text-sm">View Creator Profile</span>
                 </DropdownMenuItem>
-                
+
                 {/* <DropdownMenuItem 
                   className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-muted"
                   onClick={(e) => {
@@ -672,19 +755,15 @@ export const PostCard = (props: PostCardProps) => {
                   </DropdownMenuItem>
                 )}
 
-                {/* <DropdownMenuSeparator className="my-1.5 bg-foreground/5" />
-                
-                <DropdownMenuItem 
+                <DropdownMenuSeparator className="my-1.5 bg-foreground/5" />
+
+                <DropdownMenuItem
                   className="gap-3 rounded-lg py-2 cursor-pointer focus:bg-destructive/10 text-destructive hover:text-destructive"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toast.info("Report system is coming soon!");
-                  }}
+                  onClick={openReportModal}
                 >
                   <Flag className="h-4 w-4" />
                   <span className="font-medium text-sm">Report Article</span>
-                </DropdownMenuItem> */}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -764,6 +843,85 @@ export const PostCard = (props: PostCardProps) => {
           </div>
         </div>
       </div>
+
+      <Dialog open={reportModalOpen} onOpenChange={setReportModalOpen}>
+        <DialogContent
+          className="sm:max-w-[860px] rounded-[30px] p-0 overflow-hidden border-border/60 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-6 py-6 sm:px-12 sm:py-10">
+            <DialogHeader className="space-y-3 text-left">
+              <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">
+                Report Article
+              </DialogTitle>
+              <DialogDescription className="text-[21px] leading-relaxed text-muted-foreground max-w-4xl">
+                We take your feedback seriously. Please share your concerns, and our editorial team will prioritize
+                reviewing this content.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-8 space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="report-reason" className="text-sm font-semibold">
+                  Reason
+                </Label>
+                <Select value={reportReason} onValueChange={(value: ReportReason) => setReportReason(value)}>
+                  <SelectTrigger id="report-reason" className="h-12">
+                    <SelectValue placeholder="Select a reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REPORT_REASONS.map((reason) => (
+                      <SelectItem key={reason.value} value={reason.value}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="report-details" className="text-sm font-semibold">
+                  Details
+                </Label>
+                <Textarea
+                  id="report-details"
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Please provide specific details so we can take the appropriate action..."
+                  className="min-h-[230px] resize-none text-lg leading-relaxed rounded-xl border-muted-foreground/20"
+                  maxLength={1000}
+                />
+                <p className="text-xs text-muted-foreground text-right">{reportDetails.length}/1000</p>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setReportModalOpen(false)}
+                className="h-12 px-8 text-lg rounded-xl"
+                disabled={isReporting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={submitReport}
+                className="h-12 px-8 text-lg rounded-xl"
+                disabled={isReporting || !reportReason || reportDetails.trim().length < 10}
+              >
+                {isReporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Report"
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </article>
   );
 };
