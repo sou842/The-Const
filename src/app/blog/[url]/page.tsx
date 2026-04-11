@@ -16,6 +16,15 @@ import { ThumbnailGallery } from "@/components/blog/ThumbnailGallery";
 import Link from "next/link";
 import { PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Script from "next/script";
+import {
+  absoluteUrl,
+  buildArticleJsonLd,
+  getBlogDescription,
+  getBlogKeywords,
+  getBlogShareImage,
+  siteConfig,
+} from "@/lib/seo";
 
 // Register models
 void Like;
@@ -88,9 +97,17 @@ export default async function BlogReadPage({ params }: Props) {
   const isAuthor = blog.authorId && session?.userId && String(blog.authorId) === String(session.userId);
   const isAdmin = session?.role === "admin";
   const canEdit = isAuthor || isAdmin;
+  const articleJsonLd = buildArticleJsonLd(blog, `/blog/${url}`);
 
   return (
     <AppLayout shadow="none">
+      <Script
+        id="article-jsonld"
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleJsonLd),
+        }}
+      />
       <div className="pb-20 md:pb-8 animate-fade-in max-w-4xl mx-auto px-4">
         {/* Edit Button for Author/Admin */}
         {canEdit && (
@@ -137,27 +154,43 @@ export async function generateMetadata({ params }: Props) {
   const blog = await getBlog(url);
   if (!blog) return { title: "Blog Not Found" };
 
-  // Determine the best share image
-  let shareImage = blog.thumbnail?.url || blog.thumbnail?.image || blog.image;
-  if (blog.thumbnail?.type === "multiple-images" && blog.thumbnail.urls?.length) {
-    shareImage = blog.thumbnail.urls[0];
-  }
+  const description = getBlogDescription(blog);
+  const shareImage = getBlogShareImage(blog);
+  const canonical = absoluteUrl(`/blog/${url}`);
+  const keywords = getBlogKeywords(blog);
 
   return {
-    title: `${blog.title} — The Const`,
-    description: blog.thumbnail?.description || blog.title,
+    title: blog.title,
+    description,
+    keywords,
+    alternates: {
+      canonical,
+    },
     openGraph: {
       title: blog.title,
-      description: blog.thumbnail?.description || blog.title,
+      description,
       type: "article",
-      url: `https://theconst.com/blog/${url}`,
+      url: canonical,
+      siteName: siteConfig.name,
+      publishedTime: blog.publishedDate
+        ? new Date(blog.publishedDate).toISOString()
+        : undefined,
+      modifiedTime: blog.updatedAt
+        ? new Date(blog.updatedAt).toISOString()
+        : undefined,
+      authors: blog.author ? [blog.author] : undefined,
+      tags: keywords.length ? keywords : undefined,
       images: shareImage ? [{ url: shareImage }] : [],
     },
     twitter: {
-      card: "summary_large_image",
+      card: shareImage ? "summary_large_image" : "summary",
       title: blog.title,
-      description: blog.thumbnail?.description || blog.title,
+      description,
       images: shareImage ? [shareImage] : [],
+    },
+    robots: {
+      index: true,
+      follow: true,
     },
   };
 }
