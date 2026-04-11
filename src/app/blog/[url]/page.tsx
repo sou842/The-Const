@@ -130,9 +130,20 @@ export default async function BlogReadPage({ params }: Props) {
         </h1>
 
         <article className="mb-8">
-          {blog.body && (blog.body as EditorBlock[]).map((block: EditorBlock, index: number) => (
-            <EditorJsRenderer key={index} block={block} isFirst={index === 0} />
-          ))}
+          {blog.contentType === "quick_post" ? (
+            <div 
+              className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap font-light"
+              dangerouslySetInnerHTML={{ 
+                __html: blog.thumbnail?.description
+                  ?.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  ?.replace(/\n\n/g, '<br/><br/>') || ""
+              }}
+            />
+          ) : (
+            blog.body && (blog.body as EditorBlock[]).map((block: EditorBlock, index: number) => (
+              <EditorJsRenderer key={index} block={block} isFirst={index === 0} />
+            ))
+          )}
         </article>
 
 

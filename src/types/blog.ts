@@ -19,7 +19,7 @@ export interface BlogPost {
   content?: string;
   body?: EditorBlock[];
   thumbnail?: { 
-    type?: 'image' | 'multiple-images' | 'video';
+    type?: 'image' | 'multiple-images' | 'video' | 'default';
     image?: string; 
     title?: string; 
     description?: string;
@@ -42,7 +42,7 @@ export interface BlogPost {
   status?: "approved" | "pending" | "rejected";
   editorType?: string;
   isTrending?: boolean;
-  contentType?: "blog" | "project";
+  contentType?: "blog" | "project" | "quick_post";
   language?: "en" | "hi";
   creator?: {
     _id?: string;

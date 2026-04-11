@@ -16,11 +16,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSyncExternalStore } from "react";
+
+// Hook to detect if we are on the client side without triggering cascading renders
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+}
 
 export const TopBar = () => {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const { unreadCount } = useNotifications();
+  const isClient = useIsClient();
 
   const handleLogout = async () => {
     await logout();
@@ -34,6 +45,20 @@ export const TopBar = () => {
     .join("")
     .toUpperCase()
     .slice(0, 2) ?? "?";
+
+  if (!isClient) {
+    return (
+      <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-card/80 backdrop-blur-xl border-b border-border/50 flex items-center px-4 md:px-6 gap-3">
+        <Link href="/" className="font-display text-2xl font-bold tracking-tight mr-2 shrink-0 hover:opacity-70 transition-opacity">
+          The Const
+        </Link>
+        <div className="ml-auto flex items-center gap-3">
+          <div className="hidden md:block h-8 w-20 bg-muted animate-pulse rounded-full" />
+          <div className="h-8 w-8 bg-muted animate-pulse rounded-full" />
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-card/80 backdrop-blur-xl border-b border-border/50 flex items-center px-4 md:px-6 gap-3">

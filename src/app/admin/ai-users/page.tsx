@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,38 @@ import {
   ChevronDown,
   ChevronUp,
   Radio,
+  Loader2,
 } from "lucide-react";
-import { aiPersonas, type AIPersona } from "@/components/data/aiPersonas";
 import { useToast } from "@/hooks/use-toast";
+
+/* -- Types ------------------------------------------- */
+
+interface AIPersona {
+  id: string;
+  name: string;
+  avatar: string;
+  initials: string;
+  title: string;
+  bio: string;
+  personality: {
+    tone: string;
+    interests: string[];
+    skills: string[];
+    hobbies: string[];
+    postingStyle: string;
+  };
+  status: "active" | "paused" | "draft";
+  schedule: {
+    postsPerDay: number;
+    activeHours: string;
+  };
+  stats: {
+    totalPosts: number;
+    totalLikes: number;
+    totalComments: number;
+    lastActive: string;
+  };
+}
 
 /* -- Persona Card ------------------------------------ */
 
@@ -48,14 +77,27 @@ const PersonaCard = ({
   index,
 }: {
   persona: AIPersona;
-  onTriggerPost: (id: string) => void;
-  onToggleStatus: (id: string) => void;
+  onTriggerPost: (id: string) => Promise<void>;
+  onToggleStatus: (id: string, currentStatus: string) => Promise<void>;
   index: number;
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const isActive = persona.status === "active";
   const isPaused = persona.status === "paused";
+
+  const handleToggle = async () => {
+    setLoading(true);
+    await onToggleStatus(persona.id, persona.status);
+    setLoading(false);
+  };
+
+  const handleTrigger = async () => {
+    setLoading(true);
+    await onTriggerPost(persona.id);
+    setLoading(false);
+  };
 
   return (
     <div
@@ -109,8 +151,9 @@ const PersonaCard = ({
               <DropdownMenuItem><Eye className="h-3.5 w-3.5 mr-2" />View Profile</DropdownMenuItem>
               <DropdownMenuItem><Settings2 className="h-3.5 w-3.5 mr-2" />Edit Persona</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onToggleStatus(persona.id)}>
-                {isActive ? <><Pause className="h-3.5 w-3.5 mr-2" />Pause</> : <><Play className="h-3.5 w-3.5 mr-2" />Activate</>}
+              <DropdownMenuItem onClick={handleToggle} disabled={loading}>
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : isActive ? <Pause className="h-3.5 w-3.5 mr-2" /> : <Play className="h-3.5 w-3.5 mr-2" />}
+                {isActive ? "Pause" : "Activate"}
               </DropdownMenuItem>
               <DropdownMenuItem className="text-destructive"><Trash2 className="h-3.5 w-3.5 mr-2" />Delete</DropdownMenuItem>
             </DropdownMenuContent>
@@ -158,7 +201,7 @@ const PersonaCard = ({
         {/* Schedule line */}
         <div className="flex items-center justify-between py-2.5 px-3 rounded-xl bg-muted/30 border border-border/20 mb-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {persona.schedule.enabled ? (
+            {persona.schedule ? (
               <>
                 <Zap className="h-3 w-3 text-foreground" />
                 <span className="font-mono">
@@ -182,7 +225,7 @@ const PersonaCard = ({
                 : "border-border text-muted-foreground"
             }`}
           >
-            {persona.status.toUpperCase()}
+            {(persona.status || 'draft').toUpperCase()}
           </Badge>
         </div>
 
@@ -191,10 +234,10 @@ const PersonaCard = ({
           <Button
             size="sm"
             className="flex-1 h-9 text-xs font-mono gap-2 rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-all"
-            onClick={() => onTriggerPost(persona.id)}
-            disabled={persona.status === "draft"}
+            onClick={handleTrigger}
+            disabled={loading || persona.status === "draft" || isPaused}
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
             Generate Post
           </Button>
           <Button
@@ -243,9 +286,32 @@ const PersonaCard = ({
 
 export default function AdminAIUsersPage() {
   const [search, setSearch] = useState("");
-  const [personas, setPersonas] = useState(aiPersonas);
+  const [personas, setPersonas] = useState<AIPersona[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "paused" | "draft">("all");
   const { toast } = useToast();
+
+  const fetchPersonas = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/ai-users");
+      if (!res.ok) throw new Error("Failed to fetch personas");
+      const data = await res.json();
+      setPersonas(data);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to load AI users.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPersonas();
+  }, []);
 
   const filtered = personas
     .filter((p) => filter === "all" || p.status === filter)
@@ -258,26 +324,69 @@ export default function AdminAIUsersPage() {
 
   const activeCount = personas.filter((p) => p.status === "active").length;
   const pausedCount = personas.filter((p) => p.status === "paused").length;
-  const draftCount = personas.filter((p) => p.status === "draft").length;
+  const draftCount = personas.filter((p) => (p.status || 'draft') === "draft").length;
   const totalPosts = personas.reduce((sum, p) => sum + p.stats.totalPosts, 0);
 
-  const handleTriggerPost = (id: string) => {
+  const handleTriggerPost = async (id: string) => {
     const persona = personas.find((p) => p.id === id);
     toast({
-      title: `⚡ Generating post...`,
-      description: `${persona?.name} is crafting content based on their persona.`,
+      title: `⚡ Triggering AI process...`,
+      description: `${persona?.name} is analyzing the feed.`,
     });
+
+    try {
+      const res = await fetch("/api/admin/ai-users/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: id }),
+      });
+      if (!res.ok) throw new Error("Trigger failed");
+      
+      toast({
+        title: "Success",
+        description: "Process completed successfully.",
+      });
+      fetchPersonas(); // Refresh stats
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to trigger AI process.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleToggleStatus = (id: string) => {
-    setPersonas((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? { ...p, status: p.status === "active" ? ("paused" as const) : ("active" as const) }
-          : p
-      )
-    );
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === "active" ? "paused" : "active";
+    try {
+      const res = await fetch("/api/admin/ai-users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: id, status: newStatus }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      
+      setPersonas(prev => prev.map(p => p.id === id ? { ...p, status: newStatus as any } : p));
+      toast({
+        title: "Status Updated",
+        description: `Persona is now ${newStatus}.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to update status.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (loading && personas.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -369,9 +478,9 @@ export default function AdminAIUsersPage() {
 
         <Separator orientation="vertical" className="h-6 hidden md:block" />
 
-        <Button variant="outline" size="sm" className="h-10 gap-2 text-xs font-mono rounded-xl border-border/50">
+        <Button variant="outline" size="sm" className="h-10 gap-2 text-xs font-mono rounded-xl border-border/50" onClick={fetchPersonas}>
           <Sparkles className="h-3.5 w-3.5" />
-          Generate All
+          Refresh Stats
         </Button>
       </div>
 

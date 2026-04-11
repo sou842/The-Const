@@ -29,6 +29,7 @@ import {
   CheckCircle2,
   FileText,
   Briefcase,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,8 +54,8 @@ const ALLOWED_IMAGE_HOSTS_PATTERN =
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ContentType = "blog" | "project";
-export type ThumbType = "image" | "multiple-images" | "video";
+export type ContentType = "blog" | "project" | "quick_post";
+export type ThumbType = "image" | "multiple-images" | "video" | "default";
 
 export interface ThumbnailData {
   type: ThumbType;
@@ -227,6 +228,7 @@ function TypeToggle({
         [
           { v: "blog", label: "Blog Post", Icon: FileText },
           { v: "project", label: "Project", Icon: Briefcase },
+          { v: "quick_post", label: "Quick Post", Icon: Zap },
         ] as const
       ).map(({ v, label, Icon }) => (
         <button
@@ -366,10 +368,12 @@ function PreviewCard({
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-background/80 backdrop-blur-sm text-[9px] font-bold uppercase tracking-widest text-foreground border border-border/30 shadow-sm">
             {contentType === "blog" ? (
               <FileText className="h-2.5 w-2.5" />
-            ) : (
+            ) : contentType === "project" ? (
               <Briefcase className="h-2.5 w-2.5" />
+            ) : (
+              <Zap className="h-2.5 w-2.5" />
             )}
-            {contentType}
+            {contentType.replace("_", " ")}
           </span>
         </div>
 

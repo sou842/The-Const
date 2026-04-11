@@ -29,7 +29,7 @@ interface PostCardProps {
   content?: string;
   body?: unknown[];
   thumbnail?: {
-    type?: 'image' | 'multiple-images' | 'video';
+    type?: 'image' | 'multiple-images' | 'video' | 'default';
     image?: string;
     title?: string;
     description?: string;
@@ -776,9 +776,14 @@ export const PostCard = (props: PostCardProps) => {
               </p>
             )}
             {thumbnail?.description && (
-              <p className="text-sm leading-[1.6] text-foreground/80 line-clamp-3 font-light">
-                {thumbnail.description}
-              </p>
+              <div 
+                className="text-sm leading-[1.6] text-foreground/80 font-light whitespace-pre-wrap line-clamp-6"
+                dangerouslySetInnerHTML={{ 
+                  __html: thumbnail.description
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n\n/g, '<br/><br/>')
+                }}
+              />
             )}
           </div>
 

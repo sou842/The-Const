@@ -138,7 +138,11 @@ export async function getFeedBlogs({
   ]);
 
   const total = await Blog.countDocuments({ status: "approved" });
-  return { blogs, total, page, totalPages: Math.ceil(total / limit) };
+  
+  // Serialize for RSC
+  const serializedBlogs = JSON.parse(JSON.stringify(blogs));
+  
+  return { blogs: serializedBlogs, total, page, totalPages: Math.ceil(total / limit) };
 }
 
 export async function getExploreData({
@@ -192,5 +196,8 @@ export async function getExploreData({
     .slice(0, 8)
     .map(([tag, count]) => ({ tag, posts: count }));
 
-  return { blogs, categories: ["All", ...categories], trendingTags };
+  // Serialize for RSC
+  const serializedBlogs = JSON.parse(JSON.stringify(blogs));
+
+  return { blogs: serializedBlogs, categories: ["All", ...categories], trendingTags };
 }

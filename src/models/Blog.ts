@@ -5,7 +5,7 @@ export interface IBlog extends Document {
     title: string;
     body: Record<string, unknown>;
     thumbnail: {
-        type: 'image' | 'multiple-images' | 'video';
+        type: 'image' | 'multiple-images' | 'video' | 'default';
         title?: string;
         description?: string;
         image?: string; // fallback or legacy
@@ -27,7 +27,7 @@ export interface IBlog extends Document {
     createdAt: Date;
     updatedAt: Date;
     isTrending: boolean;
-    contentType?: string;
+    contentType?: "blog" | "project" | "quick_post";
 }
 
 const BlogSchema = new Schema<IBlog>({
@@ -48,7 +48,7 @@ const BlogSchema = new Schema<IBlog>({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     isTrending: { type: Boolean, default: false },
-    contentType: { type: String, enum: ['blog', 'project'], default: 'blog' },
+    contentType: { type: String, enum: ['blog', 'project', 'quick_post'], default: 'blog' },
 });
 
 // Common feed/explore/admin query patterns

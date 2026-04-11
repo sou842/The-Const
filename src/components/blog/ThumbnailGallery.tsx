@@ -20,7 +20,7 @@ import { extractYoutubeId, buildYoutubeEmbedUrl } from "@/lib/videoUtils";
 import { X, Maximize2 } from "lucide-react";
 
 interface ThumbnailData {
-  type?: "image" | "multiple-images" | "video";
+  type?: "image" | "multiple-images" | "video" | "default";
   image?: string;
   title?: string;
   description?: string;
