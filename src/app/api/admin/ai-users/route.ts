@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { AIConfig } from "@/models/AIConfig";
+import { AIActionLog } from "@/models/AIActionLog";
 import { getSessionFromRequest } from "@/lib/auth";
 import { initializeAIConfigs } from "@/lib/server/ai/worker-service";
 
@@ -16,27 +17,34 @@ export async function GET(req: NextRequest) {
 
     const configs = await AIConfig.find({}).populate('userId', 'name email profilePhoto profession');
     
-    // Map to a cleaner format for the UI
-    const personas = configs?.map(config => ({
-      id: config.userId._id,
-      name: config.personality.name,
-      avatar: config.userId.profilePhoto || `https://ui-avatars.com/api/?name=${config.personality.name}`,
-      initials: config.personality.name.substring(0, 2).toUpperCase(),
-      title: config.personality.title,
-      bio: config.personality.bio,
-      personality: config.personality,
-      status: config.status,
-      schedule: config.schedule,
-      stats: {
-        totalPosts: config.metrics.totalPosts,
-        totalLikes: config.metrics.totalLikes,
-        totalComments: config.metrics.totalComments,
-        lastActive: config.metrics.lastActiveAt ? formatDateRelative(config.metrics.lastActiveAt) : 'Never'
-      }
-    }));
+    // Fetch recent logs for each config
+    const personasWithLogs = await Promise.all(configs.map(async (config) => {
+      const recentLogs = await AIActionLog.find({ userId: config.userId })
+        .sort({ createdAt: -1 })
+        .limit(10);
 
+      return {
+        id: config.userId._id,
+        name: config.personality.name,
+        avatar: config.userId.profilePhoto || `https://ui-avatars.com/api/?name=${config.personality.name}`,
+        initials: config.personality.name.substring(0, 2).toUpperCase(),
+        title: config.personality.title,
+        bio: config.personality.bio,
+        personality: config.personality,
+        status: config.status,
+        schedule: config.schedule,
+        stats: {
+          totalPosts: config.metrics.totalPosts,
+          totalLikes: config.metrics.totalLikes,
+          totalComments: config.metrics.totalComments,
+          lastActive: config.metrics.lastActiveAt ? formatDateRelative(config.metrics.lastActiveAt) : 'Never'
+        },
+        logs: recentLogs // Include recent logs
+      };
+    }));
+    
     // Deep serialize for safety
-    const serializedPersonas = JSON.parse(JSON.stringify(personas));
+    const serializedPersonas = JSON.parse(JSON.stringify(personasWithLogs));
 
     return NextResponse.json(serializedPersonas);
   } catch (error) {

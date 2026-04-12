@@ -15,12 +15,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Run the worker
-    await runAIWorker();
+    const results = await runAIWorker();
 
     return NextResponse.json({ 
       success: true, 
       timestamp: new Date().toISOString(),
-      message: "AI Worker run completed" 
+      message: "AI Worker run completed",
+      results
     });
   } catch (error) {
     console.error("AI Worker Error:", error);

@@ -36,7 +36,18 @@ import {
   ChevronUp,
   Radio,
   Loader2,
+  AlertCircle,
+  CheckCircle2,
+  History,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 
 /* -- Types ------------------------------------------- */
@@ -66,6 +77,7 @@ interface AIPersona {
     totalComments: number;
     lastActive: string;
   };
+  logs: any[];
 }
 
 /* -- Persona Card ------------------------------------ */
@@ -74,11 +86,13 @@ const PersonaCard = ({
   persona,
   onTriggerPost,
   onToggleStatus,
+  onViewLogs,
   index,
 }: {
   persona: AIPersona;
   onTriggerPost: (id: string) => Promise<void>;
   onToggleStatus: (id: string, currentStatus: string) => Promise<void>;
+  onViewLogs: (persona: AIPersona) => void;
   index: number;
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -148,7 +162,7 @@ const PersonaCard = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem><Eye className="h-3.5 w-3.5 mr-2" />View Profile</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onViewLogs(persona)}><Terminal className="h-3.5 w-3.5 mr-2" />View History</DropdownMenuItem>
               <DropdownMenuItem><Settings2 className="h-3.5 w-3.5 mr-2" />Edit Persona</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleToggle} disabled={loading}>
@@ -230,7 +244,7 @@ const PersonaCard = ({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-4">
           <Button
             size="sm"
             className="flex-1 h-9 text-xs font-mono gap-2 rounded-xl bg-foreground text-background hover:bg-foreground/90 transition-all"
@@ -275,6 +289,36 @@ const PersonaCard = ({
               <p className="text-[9px] font-mono uppercase tracking-[0.2em] text-muted-foreground mb-1.5">[+] Bio</p>
               <p className="text-xs text-muted-foreground leading-relaxed">{persona.bio}</p>
             </div>
+
+            {/* Recent Logs (Inner View) */}
+            <div className="pt-4 border-t border-border/20">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Detailed Activity</p>
+                <button 
+                  onClick={() => onViewLogs(persona)}
+                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  View All
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {persona.logs?.slice(0, 5).map((log, i) => (
+                  <div key={i} className="flex items-start gap-2 text-[11px] leading-tight p-1.5 rounded-lg bg-muted/30">
+                    <div className={cn(
+                      "mt-1 w-1.5 h-1.5 rounded-full flex-shrink-0",
+                      log.status === 'success' ? "bg-green-500" : log.status === 'skipped' ? "bg-yellow-500" : "bg-red-500"
+                    )} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="font-semibold capitalize text-foreground/70">{log.action}</span>
+                        <span className="text-[9px] opacity-40 font-mono italic">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <span className="text-muted-foreground block">{log.reason || log.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -289,6 +333,7 @@ export default function AdminAIUsersPage() {
   const [personas, setPersonas] = useState<AIPersona[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "paused" | "draft">("all");
+  const [logPersona, setLogPersona] = useState<AIPersona | null>(null);
   const { toast } = useToast();
 
   const fetchPersonas = async () => {
@@ -492,10 +537,86 @@ export default function AdminAIUsersPage() {
             persona={persona}
             onTriggerPost={handleTriggerPost}
             onToggleStatus={handleToggleStatus}
+            onViewLogs={(p) => setLogPersona(p)}
             index={i}
           />
         ))}
       </div>
+
+      {/* -- Logs Modal -- */}
+      <Dialog open={!!logPersona} onOpenChange={(open) => !open && setLogPersona(null)}>
+        <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 overflow-hidden rounded-[30px]">
+          <DialogHeader className="p-8 border-b border-border/40 bg-muted/20">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-foreground flex items-center justify-center">
+                <History className="h-6 w-6 text-background" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold tracking-tight">Activity History</DialogTitle>
+                <DialogDescription className="text-sm font-mono mt-0.5">
+                  Internal logic logs for {logPersona?.name}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-8 space-y-6">
+            {!logPersona?.logs || logPersona.logs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+                <Terminal className="h-10 w-10 mb-4" />
+                <p className="font-mono text-sm uppercase">No logs recorded yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {logPersona.logs.map((log, i) => (
+                  <div 
+                    key={i} 
+                    className="relative pl-8 animate-in fade-in slide-in-from-left-2 duration-300" 
+                    style={{ animationDelay: `${i * 30}ms` }}
+                  >
+                    {/* Timeline line */}
+                    {i !== logPersona.logs.length - 1 && (
+                      <div className="absolute left-3 top-6 bottom-[-16px] w-px bg-border/40" />
+                    )}
+                    
+                    {/* Status Dot */}
+                    <div className={cn(
+                      "absolute left-0 top-1 h-6 w-6 rounded-full flex items-center justify-center ring-4 ring-background",
+                      log.status === 'success' ? "bg-green-500/10 text-green-500" : 
+                      log.status === 'skipped' ? "bg-yellow-500/10 text-yellow-500" : 
+                      "bg-red-500/10 text-red-500"
+                    )}>
+                      {log.status === 'success' ? <CheckCircle2 className="h-3 w-3" /> : 
+                       log.status === 'skipped' ? <AlertCircle className="h-3 w-3" /> : 
+                       <AlertCircle className="h-3 w-3" />}
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-card border border-border/40 hover:border-foreground/20 transition-all">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-foreground/5">{log.action}</span>
+                          {log.isManual && (
+                            <Badge variant="outline" className="text-[9px] h-4 bg-foreground/5 border-foreground/30 text-foreground font-mono">MANUAL</Badge>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono">{formatDateRelativeDetailed(new Date(log.createdAt))}</span>
+                      </div>
+                      <p className="text-sm font-body text-foreground/90 leading-relaxed mb-1">{log.reason || log.status.toUpperCase()}</p>
+                      {log.details && (
+                        <div className="mt-2 p-2 rounded-lg bg-muted/50 border border-border/20">
+                          <pre className="text-[10px] font-mono text-muted-foreground overflow-x-auto">
+                            {JSON.stringify(log.details, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -508,4 +629,16 @@ export default function AdminAIUsersPage() {
       )}
     </div>
   );
+}
+
+function formatDateRelativeDetailed(date: Date) {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(mins / 60);
+
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }

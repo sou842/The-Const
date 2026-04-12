@@ -5,10 +5,35 @@ import { Blog } from '@/models/Blog';
 import { Like } from '@/models/Like';
 import { Comment } from '@/models/Comment';
 import { AIConfig, IAIConfig } from '@/models/AIConfig';
+import { AIActionLog } from '@/models/AIActionLog';
 import { generateWithMistral } from './mistral';
 
 const SONU_ID = '69c9223054dfdaef41477c4d';
 const ANIMESH_ID = '69c8d7e933df5c4a4a7cee2c';
+
+// --- Helpers ---
+async function logAIAction(
+  userId: string, 
+  action: 'post' | 'like' | 'comment' | 'trigger' | 'system', 
+  status: 'success' | 'skipped' | 'error', 
+  reason?: string, 
+  details?: any,
+  isManual: boolean = false
+) {
+  try {
+    await connectDB();
+    await AIActionLog.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      action,
+      status,
+      reason,
+      details,
+      isManual
+    });
+  } catch (err) {
+    console.error("Critical: Failed to save AI action log:", err);
+  }
+}
 
 // --- Initialization Logic ---
 export async function initializeAIConfigs() {
@@ -59,28 +84,42 @@ export async function initializeAIConfigs() {
 
 // --- Posting Logic ---
 
-async function shouldPost(config: IAIConfig, force: boolean = false): Promise<boolean> {
-  if (force) return true;
+async function shouldPost(config: IAIConfig, force: boolean = false): Promise<{ should: boolean; reason?: string }> {
+  if (force) return { should: true, reason: 'Manual force' };
   
   const now = new Date();
   const { postsToday, lastPostAt } = config.metrics;
   const { postsPerDay } = config.schedule;
 
   // Basic limit check
-  if (postsToday >= postsPerDay) return false;
-
-  // Space out posts (min 3 hours)
-  if (lastPostAt && (now.getTime() - lastPostAt.getTime()) < 3 * 60 * 60 * 1000) {
-    return false;
+  if (postsToday >= postsPerDay) {
+    return { should: false, reason: `Daily limit reached (${postsToday}/${postsPerDay})` };
   }
 
-  // Randomness: 20% chance to post in this run if we haven't reached the limit
-  return Math.random() < 0.2;
+  // Space out posts (min 3 hours)
+  if (lastPostAt) {
+    const hoursSinceLast = (now.getTime() - lastPostAt.getTime()) / (60 * 60 * 1000);
+    if (hoursSinceLast < 3) {
+      return { should: false, reason: `Cooldown active (${hoursSinceLast.toFixed(1)}h / 3h split)` };
+    }
+  }
+
+  // Randomness check
+  const roll = Math.random();
+  const threshold = 0.2;
+  if (roll >= threshold) {
+    return { should: false, reason: `Probabilistic skip (Roll: ${roll.toFixed(2)} > ${threshold})` };
+  }
+
+  return { should: true };
 }
 
-async function generateAndSavePost(config: IAIConfig) {
+async function generateAndSavePost(config: IAIConfig, isManual: boolean = false) {
   const user = await User.findById(config.userId);
-  if (!user) return;
+  if (!user) {
+    await logAIAction(config.userId.toString(), 'post', 'error', 'User not found', null, isManual);
+    return;
+  }
 
   console.log(`Generating post for ${config.personality.name}...`);
 
@@ -97,56 +136,71 @@ async function generateAndSavePost(config: IAIConfig) {
     - "thumbnail_title" should be a catchy hook.
     - "thumbnail_description" should be a 1-sentence summary (max 150 chars).
     - "content" is the main body text. Use professional formatting: newlines between paragraphs, bold key terms (e.g. **term**), and use bullet points (-) for lists.
+    - NO PREAMBLE. NO EXPLANATION BEFORE OR AFTER THE JSON.
 
     Rule:
     - Do NOT use em dashes (—) in the entire post.
     - Use a comma, period, or rewrite the sentence.
   `;
 
-  try {
-    const rawResponse = await generateWithMistral(prompt);
-    
-    // Robust JSON extraction
-    const startIdx = rawResponse.indexOf('{');
-    const endIdx = rawResponse.lastIndexOf('}');
-    
-    if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) {
-      throw new Error(`No JSON block found in response: ${rawResponse.substring(0, 100)}...`);
+  let lastErr: any = null;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const rawResponse = await generateWithMistral(prompt);
+      
+      // Robust JSON extraction
+      const startIdx = rawResponse.indexOf('{');
+      const endIdx = rawResponse.lastIndexOf('}');
+      
+      if (startIdx === -1 || endIdx === -1 || startIdx > endIdx) {
+        throw new Error(`No JSON block found in response (Attempt ${attempt})`);
+      }
+
+      const jsonStr = rawResponse.substring(startIdx, endIdx + 1);
+      const parsed = JSON.parse(jsonStr);
+      
+      const { title, content, thumbnail_title, thumbnail_description, tags } = parsed;
+
+      const blog = new Blog({
+        title,
+        body: [],
+        category: config.personality.interests[0] || 'Technology',
+        tags: tags || [],
+        author: user.name,
+        authorId: user._id,
+        status: 'approved',
+        contentType: 'quick_post',
+        editorType: 'EDITORJS',
+        thumbnail: { 
+          type: 'default', 
+          title: thumbnail_title || title,
+          description: content
+        },
+        publishedDate: new Date()
+      });
+
+      await blog.save();
+      
+      // Update metrics
+      config.metrics.lastPostAt = new Date();
+      config.metrics.postsToday += 1;
+      config.metrics.totalPosts += 1;
+      await config.save();
+
+      await logAIAction(config.userId.toString(), 'post', 'success', `Created: ${title}`, { blogId: blog._id }, isManual);
+      console.log(`Post created by ${config.personality.name}: ${title}`);
+      return; // Success, exit function
+    } catch (err) {
+      lastErr = err;
+      console.error(`Attempt ${attempt} failed for ${config.personality.name}:`, err);
+      // Wait a bit before retry if it's the first attempt
+      if (attempt === 1) await new Promise(resolve => setTimeout(resolve, 1000));
     }
-
-    const jsonStr = rawResponse.substring(startIdx, endIdx + 1);
-    const { title, content, thumbnail_title, thumbnail_description, tags } = JSON.parse(jsonStr);
-
-    const blog = new Blog({
-      title,
-      body: [], // quick_posts have empty body array
-      category: config.personality.interests[0] || 'Technology',
-      tags: tags || [],
-      author: user.name,
-      authorId: user._id,
-      status: 'approved',
-      contentType: 'quick_post',
-      editorType: 'EDITORJS',
-      thumbnail: { 
-        type: 'default', 
-        title: thumbnail_title || title,
-        description: content // The main post content goes here for quick_posts
-      },
-      publishedDate: new Date()
-    });
-
-    await blog.save();
-    
-    // Update metrics
-    config.metrics.lastPostAt = new Date();
-    config.metrics.postsToday += 1;
-    config.metrics.totalPosts += 1;
-    await config.save();
-
-    console.log(`Post created by ${config.personality.name}: ${title}`);
-  } catch (err) {
-    console.error(`Failed to generate post for ${config.personality.name}:`, err);
   }
+
+  // If we get here, all attempts failed
+  await logAIAction(config.userId.toString(), 'post', 'error', lastErr instanceof Error ? lastErr.message : String(lastErr), null, isManual);
+  console.error(`All attempts failed for ${config.personality.name}:`, lastErr);
 }
 
 // --- Engagement Logic ---
@@ -201,6 +255,7 @@ async function processEngagement(config: IAIConfig) {
       await Like.create({ blogId: blog._id, userId: config.userId });
       config.metrics.totalLikes += 1;
       likesCount++;
+      await logAIAction(config.userId.toString(), 'like', 'success', `Liked: ${blog.title}`, { blogId: blog._id });
       console.log(`${config.personality.name} liked: ${blog.title}`);
     }
 
@@ -219,7 +274,7 @@ async function processEngagement(config: IAIConfig) {
         
         try {
           const commentText = await generateWithMistral(prompt);
-          await Comment.create({
+          const comment = await Comment.create({
             blogId: blog._id,
             userId: config.userId,
             author: config.personality.name,
@@ -228,8 +283,10 @@ async function processEngagement(config: IAIConfig) {
           });
           config.metrics.totalComments += 1;
           commentsCount++;
+          await logAIAction(config.userId.toString(), 'comment', 'success', `Commented on: ${blog.title}`, { blogId: blog._id, commentId: comment._id });
           console.log(`${config.personality.name} commented on: ${blog.title}`);
         } catch (err) {
+          await logAIAction(config.userId.toString(), 'comment', 'error', err instanceof Error ? err.message : String(err), { blogId: blog._id });
           console.error(`Comment generation failed for ${config.personality.name}:`, err);
         }
       }
@@ -244,9 +301,19 @@ export async function runAIWorkerForUser(userId: string, force: boolean = false)
   const config = await AIConfig.findOne({ userId });
   if (!config || config.status !== 'active') return;
 
+  // Track the run trigger
+  if (!force) {
+    await logAIAction(userId, 'trigger', 'success', 'Scheduled run started');
+  } else {
+    await logAIAction(userId, 'trigger', 'success', 'Manual trigger started', null, true);
+  }
+
   // Process posting
-  if (await shouldPost(config, force)) {
-    await generateAndSavePost(config);
+  const postDecision = await shouldPost(config, force);
+  if (postDecision.should) {
+    await generateAndSavePost(config, force);
+  } else {
+    await logAIAction(userId, 'post', 'skipped', postDecision.reason, null, force);
   }
 
   // Process engagement
@@ -261,8 +328,21 @@ export async function runAIWorker() {
   await initializeAIConfigs();
   
   const activeConfigs = await AIConfig.find({ status: 'active' });
+  const results: any[] = [];
+
   for (const config of activeConfigs) {
-    // Using simple for-loop to avoid hitting API rate limits too fast (sequential execution)
     await runAIWorkerForUser(config.userId.toString());
+    
+    // Fetch recent logs for this run
+    const latestLogs = await AIActionLog.find({ 
+      userId: config.userId,
+      createdAt: { $gte: new Date(Date.now() - 60000) } // Logs from last 1 minute
+    }).sort({ createdAt: -1 });
+
+    results.push({
+      user: config.personality.name,
+      logs: latestLogs
+    });
   }
+  return results;
 }
