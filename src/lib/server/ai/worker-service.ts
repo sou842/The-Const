@@ -53,7 +53,7 @@ export async function initializeAIConfigs() {
         bio: 'Tech explorer by day, humorist by night. Always looking for the next big thing in code.',
         probabilities: { like: 0.8, comment: 0.5 }
       },
-      schedule: { postsPerDay: 3, activeHours: "10AM - 11PM" }
+      schedule: { postsPerDay: 7, activeHours: "10AM - 11PM" }
     },
     {
       userId: new mongoose.Types.ObjectId(ANIMESH_ID),
@@ -69,7 +69,7 @@ export async function initializeAIConfigs() {
         bio: 'Focused on scalable systems and clean code. Passionate about sharing architectural patterns.',
         probabilities: { like: 0.5, comment: 0.3 }
       },
-      schedule: { postsPerDay: 2, activeHours: "9AM - 6PM" }
+      schedule: { postsPerDay: 5, activeHours: "9AM - 6PM" }
     }
   ];
 
@@ -179,13 +179,21 @@ async function generateAndSavePost(config: IAIConfig, isManual: boolean = false)
         publishedDate: new Date()
       });
 
-      await blog.save();
+      await Blog.create(blog); // Use Blog.create instead of blog.save() for consistency if preferred, but existing is fine.
       
-      // Update metrics
+      // Update metrics atomically
+      await AIConfig.updateOne(
+        { _id: config._id },
+        { 
+          $set: { "metrics.lastPostAt": new Date() },
+          $inc: { "metrics.postsToday": 1, "metrics.totalPosts": 1 }
+        }
+      );
+
+      // Update local object to reflect changes for the rest of this execution
       config.metrics.lastPostAt = new Date();
       config.metrics.postsToday += 1;
       config.metrics.totalPosts += 1;
-      await config.save();
 
       await logAIAction(config.userId.toString(), 'post', 'success', `Created: ${title}`, { blogId: blog._id }, isManual);
       console.log(`Post created by ${config.personality.name}: ${title}`);
@@ -253,6 +261,12 @@ async function processEngagement(config: IAIConfig) {
     if (score >= 5) likeProb += 0.2;
     if (rand < likeProb && likesCount < 5) {
       await Like.create({ blogId: blog._id, userId: config.userId });
+      
+      await AIConfig.updateOne(
+        { _id: config._id },
+        { $inc: { "metrics.totalLikes": 1 } }
+      );
+      
       config.metrics.totalLikes += 1;
       likesCount++;
       await logAIAction(config.userId.toString(), 'like', 'success', `Liked: ${blog.title}`, { blogId: blog._id });
@@ -281,6 +295,12 @@ async function processEngagement(config: IAIConfig) {
             body: commentText,
             status: 'approved'
           });
+
+          await AIConfig.updateOne(
+            { _id: config._id },
+            { $inc: { "metrics.totalComments": 1 } }
+          );
+
           config.metrics.totalComments += 1;
           commentsCount++;
           await logAIAction(config.userId.toString(), 'comment', 'success', `Commented on: ${blog.title}`, { blogId: blog._id, commentId: comment._id });
@@ -301,6 +321,23 @@ export async function runAIWorkerForUser(userId: string, force: boolean = false)
   const config = await AIConfig.findOne({ userId });
   if (!config || config.status !== 'active') return;
 
+  // Check for new day and reset daily metrics
+  const now = new Date();
+  const todayDateStr = now.toISOString().split('T')[0];
+  const lastActive = config.metrics.lastActiveAt;
+  const lastActiveDateStr = lastActive ? lastActive.toISOString().split('T')[0] : null;
+
+  if (lastActiveDateStr && todayDateStr !== lastActiveDateStr) {
+    console.log(`[AI Worker] New day detected (${todayDateStr} vs ${lastActiveDateStr}) for ${config.personality.name}. Resetting daily metrics.`);
+    
+    await AIConfig.updateOne(
+      { _id: config._id },
+      { $set: { "metrics.postsToday": 0 } }
+    );
+    
+    config.metrics.postsToday = 0;
+  }
+
   // Track the run trigger
   if (!force) {
     await logAIAction(userId, 'trigger', 'success', 'Scheduled run started');
@@ -319,8 +356,11 @@ export async function runAIWorkerForUser(userId: string, force: boolean = false)
   // Process engagement
   await processEngagement(config);
 
+  await AIConfig.updateOne(
+    { _id: config._id },
+    { $set: { "metrics.lastActiveAt": new Date() } }
+  );
   config.metrics.lastActiveAt = new Date();
-  await config.save();
 }
 
 export async function runAIWorker() {

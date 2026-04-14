@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import useSWRInfinite from "swr/infinite";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 /* -- Types ------------------------------------------- */
 
@@ -231,13 +234,12 @@ const PersonaCard = ({
           </div>
           <Badge
             variant="outline"
-            className={`text-[9px] font-mono px-2 h-5 border ${
-              isActive
+            className={`text-[9px] font-mono px-2 h-5 border ${isActive
                 ? "border-foreground/30 text-foreground bg-foreground/5"
                 : isPaused
-                ? "border-muted-foreground/30 text-muted-foreground"
-                : "border-border text-muted-foreground"
-            }`}
+                  ? "border-muted-foreground/30 text-muted-foreground"
+                  : "border-border text-muted-foreground"
+              }`}
           >
             {(persona.status || 'draft').toUpperCase()}
           </Badge>
@@ -294,7 +296,7 @@ const PersonaCard = ({
             <div className="pt-4 border-t border-border/20">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Detailed Activity</p>
-                <button 
+                <button
                   onClick={() => onViewLogs(persona)}
                   className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -335,6 +337,29 @@ export default function AdminAIUsersPage() {
   const [filter, setFilter] = useState<"all" | "active" | "paused" | "draft">("all");
   const [logPersona, setLogPersona] = useState<AIPersona | null>(null);
   const { toast } = useToast();
+
+  // SWR Infinite for logs
+  const {
+    data: logPages,
+    size: logSize,
+    setSize: setLogSize,
+    isValidating: logsValidating,
+    isLoading: logsLoading
+  } = useSWRInfinite(
+    (index, previousPageData) => {
+      if (!logPersona) return null;
+      if (previousPageData && !previousPageData.hasMore) return null;
+      // We use index * 20 since pagination limit is 20 in the backend
+      const skip = index === 0 ? 0 : index * 20;
+      return `/api/admin/ai-users/logs?userId=${logPersona.id}&skip=${skip}&limit=20`;
+    },
+    fetcher,
+    { revalidateFirstPage: false }
+  );
+
+  const historyLogs = logPages ? logPages?.flatMap(page => page?.logs) : [];
+  const hasMoreLogs = logPages ? logPages?.[logPages?.length - 1]?.hasMore : false;
+  const loadingMoreLogs = logsValidating && historyLogs?.length > 0;
 
   const fetchPersonas = async () => {
     try {
@@ -386,7 +411,7 @@ export default function AdminAIUsersPage() {
         body: JSON.stringify({ userId: id }),
       });
       if (!res.ok) throw new Error("Trigger failed");
-      
+
       toast({
         title: "Success",
         description: "Process completed successfully.",
@@ -410,7 +435,7 @@ export default function AdminAIUsersPage() {
         body: JSON.stringify({ userId: id, status: newStatus }),
       });
       if (!res.ok) throw new Error("Update failed");
-      
+
       setPersonas(prev => prev.map(p => p.id === id ? { ...p, status: newStatus as any } : p));
       toast({
         title: "Status Updated",
@@ -423,6 +448,15 @@ export default function AdminAIUsersPage() {
         variant: "destructive",
       });
     }
+  };
+
+  const openLogHistory = (persona: AIPersona) => {
+    setLogPersona(persona);
+    // SWR will automatically fetch page 1 because logPersona changed
+  };
+
+  const handleLoadMoreLogs = async () => {
+    setLogSize(logSize + 1);
   };
 
   if (loading && personas.length === 0) {
@@ -508,11 +542,10 @@ export default function AdminAIUsersPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all ${
-                  filter === f
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-mono transition-all ${filter === f
                     ? "bg-foreground text-background shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
-                }`}
+                  }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
                 <span className="ml-1.5 opacity-60">{count}</span>
@@ -537,7 +570,7 @@ export default function AdminAIUsersPage() {
             persona={persona}
             onTriggerPost={handleTriggerPost}
             onToggleStatus={handleToggleStatus}
-            onViewLogs={(p) => setLogPersona(p)}
+            onViewLogs={openLogHistory}
             index={i}
           />
         ))}
@@ -561,34 +594,38 @@ export default function AdminAIUsersPage() {
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-8 space-y-6">
-            {!logPersona?.logs || logPersona.logs.length === 0 ? (
+            {(logsLoading && historyLogs.length === 0) ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : historyLogs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
                 <Terminal className="h-10 w-10 mb-4" />
                 <p className="font-mono text-sm uppercase">No logs recorded yet</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {logPersona.logs.map((log, i) => (
-                  <div 
-                    key={i} 
-                    className="relative pl-8 animate-in fade-in slide-in-from-left-2 duration-300" 
+              <div className="space-y-4 pb-4">
+                {historyLogs.map((log, i) => (
+                  <div
+                    key={i}
+                    className="relative pl-8 animate-in fade-in slide-in-from-left-2 duration-300"
                     style={{ animationDelay: `${i * 30}ms` }}
                   >
                     {/* Timeline line */}
-                    {i !== logPersona.logs.length - 1 && (
+                    {i !== historyLogs.length - 1 && (
                       <div className="absolute left-3 top-6 bottom-[-16px] w-px bg-border/40" />
                     )}
-                    
+
                     {/* Status Dot */}
                     <div className={cn(
                       "absolute left-0 top-1 h-6 w-6 rounded-full flex items-center justify-center ring-4 ring-background",
-                      log.status === 'success' ? "bg-green-500/10 text-green-500" : 
-                      log.status === 'skipped' ? "bg-yellow-500/10 text-yellow-500" : 
-                      "bg-red-500/10 text-red-500"
+                      log.status === 'success' ? "bg-green-500/10 text-green-500" :
+                        log.status === 'skipped' ? "bg-yellow-500/10 text-yellow-500" :
+                          "bg-red-500/10 text-red-500"
                     )}>
-                      {log.status === 'success' ? <CheckCircle2 className="h-3 w-3" /> : 
-                       log.status === 'skipped' ? <AlertCircle className="h-3 w-3" /> : 
-                       <AlertCircle className="h-3 w-3" />}
+                      {log.status === 'success' ? <CheckCircle2 className="h-3 w-3" /> :
+                        log.status === 'skipped' ? <AlertCircle className="h-3 w-3" /> :
+                          <AlertCircle className="h-3 w-3" />}
                     </div>
 
                     <div className="p-4 rounded-2xl bg-card border border-border/40 hover:border-foreground/20 transition-all">
@@ -612,6 +649,29 @@ export default function AdminAIUsersPage() {
                     </div>
                   </div>
                 ))}
+
+                {hasMoreLogs && (
+                  <div className="pt-6 flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={handleLoadMoreLogs}
+                      disabled={loadingMoreLogs}
+                      className="rounded-xl font-mono text-xs gap-2 min-w-[140px] border-dashed border-border/60 hover:border-foreground/40"
+                    >
+                      {loadingMoreLogs ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-3.5 w-3.5" />
+                          Load Older History
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
